@@ -247,8 +247,9 @@ function orderFact(id, ql, call) {
     return R("order_fact", [line], {sources: [`orders.csv line ${o.row} (${o.order_id})`], chips: [chip(`More about ${id}`, `How is ${id} doing?`)]}); };
   if (/\b(when|what (?:day|date))\b.*\bdue\b|\bdue date\b|\bdeadline\b/.test(ql))
     return say(`${id} is due ${day(o.due_date)} (${o.days_to_due < 0 ? pl(-o.days_to_due, "day") + " ago" : o.days_to_due === 0 ? "today" : "in " + pl(o.days_to_due, "day")}).`);
-  if (/\b(which|what|who)\b.*\bcustomer\b|\bwho (?:is it|it's) for\b|\bwho (?:ordered|placed)\b/.test(ql)) return say(`${id} is for ${o.customer}.`);
+  if (/\b(which|what|who)\b.*\bcustomer\b|\bwhose order\b|\bwho (?:is it|it's) for\b|\bwho (?:ordered|placed)\b/.test(ql)) return say(`${id} is for ${o.customer}.`);
   if (/\b(which|what)\s+stage\b|\bwhere is (?:it|this)\b/.test(ql)) return say(`${id} is at ${cap(o.stage)}, stage ${ST.indexOf(o.stage) + 1} of 4.`);
+  if (/\b(?:is|was|will)\b.*\b(?:late|overdue|on track|on time|at risk|behind)\b|\bpast due\b/.test(ql) && !/\bat risk\b.*\borders\b|\borders\b/.test(ql)) return orderAnswer(id, call);
   if (/\bhow many (?:pieces|units|items)\b|\bquantity\b|\bhow (?:big|large)\b/.test(ql)) return say(`${id} is ${n(o.pieces)} ${o.product.toLowerCase()}.`);
   return null;
 }
@@ -555,6 +556,14 @@ function route(text, ql, call) {
   }
   const ids = orderIds(ql), pron = /\b(it|that one|that order|this order|this one|that|those)\b/.test(ql), tid = ids[0] || (pron ? ctx.lastOrder : null);
   const cust = customerOf(ql), stage = stageOf(ql);
+  /* "who is the customer?", "how many pieces?" right after an order answer: the order in focus is meant. Only short questions
+     with no new name in them, so "which customer has the most late orders?" is still a question about the factory. */
+  const bareFact = !tid && !cust && !stage && ctx.lastOrder && ql.split(/\s+/).length <= 6 && !/\b(most|least|all|every|orders|customers|late|risk)\b/.test(ql)
+    && /\b(which|what|who)\b.*\bcustomer\b|\bwhose order\b|\bhow many (?:pieces|units|items)\b|\bquantity\b|\b(?:which|what)\s+stage\b|\bwhen\b.*\bdue\b|\bdue date\b|\bdeadline\b/.test(ql);
+  const factTid = tid || (bareFact ? ctx.lastOrder : null);
+  /* "what about on Monday?" right after a stage answer: same stage, another day */
+  const stageFollow = !tid && !cust && !stage && ctx.last && ctx.last.intent === "stage_output" && ctx.lastStage
+    && /^(?:and|what about|how about)\b/.test(ql) && /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|yesterday|today)\b/.test(ql);
 
   /* actions first: they always ask for confirmation */
   if (/\bremind(er)?\b/.test(ql)) return watchRoute(text, ql, call, true);
@@ -593,7 +602,8 @@ function route(text, ql, call) {
     ctx.pending = {type: "order", then: "why"};
     return R("clarify_order", ["Why what? Name an order (for example ORD-120) or a stage."], {asks: true, chips: cur().findings.slice(0, 3).map((f, i) => chip(`Finding ${i + 1}: ${trunc(f.title, 36)}`, `Tell me more about finding ${i + 1}`))});
   }
-  if (tid && !stage) { const f = orderFact(tid, ql, call); if (f) return f; }
+  if (stageFollow) return stageAnswer(ctx.lastStage, ql, call, false);
+  if (factTid && !stage) { const f = orderFact(factTid, ql, call); if (f) return f; }
   if (ids.length > 1) { const rs = ids.slice(0, 3).map(id => orderAnswer(id, call)); const r = rs[0]; r.lines = rs.map(x => x.lines[0]); r.detail = orderRows(ids.map(id => cur().orders.find(o => o.order_id === id)).filter(Boolean)); r.sources = rs.flatMap(x => x.sources); return r; }
   if (ids.length === 1) return orderAnswer(ids[0], call);
   if (cust) {

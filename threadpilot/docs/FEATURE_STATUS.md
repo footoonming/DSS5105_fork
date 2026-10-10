@@ -10,6 +10,9 @@ Status key: **Done** (built and tested), **Built, with caveats** (works; read th
 | **AI co-pilot** | | | |
 | 1 | Chat interface for free-form questions | Done | "Ask ThreadPilot". Built-in tools, not a language model; `?api=` connects a backend. Unusual phrasings fall back to a help message. |
 | 2 | Voice input | Built, with caveats | Microphone button in the chat (browser speech recognition, so Chrome, Edge or Safari; needs microphone permission). Not tested in an automated way. |
+| 3 | Alert triggers: what interrupts the manager and what waits for the briefing | Done | [alert_triggers.md](alert_triggers.md): every threshold, score formula and ranking rule. A test reads them back from the code, so the page cannot go stale. Thresholds are design choices for this data set, not tuned with a real manager. |
+| 4 | What the co-pilot can do for you, and its limits | Done | [actions_and_limits.md](actions_and_limits.md): the preview, confirm, log rule, the worst case of each action, what it refuses and why, and what is not covered yet. |
+| 5 | Conversation scenarios, including multi-turn | Done | [conversation_scenarios.md](conversation_scenarios.md): nine scenarios recorded from the real chat (vague question, follow-ups, unanswerable, feasibility, actions, watches). A test records them again, so the page shows what the chat does today. Recording them exposed six follow-ups that lost the thread; they are fixed and tested. |
 | **Interface and settings** | | | |
 | 1 | Font size and typeface | Done | Settings: text size S, M, L, XL; typeface System, Inter, Serif, Monospace. Saved in the browser. |
 | 2 | Target per stage, highlighted after 3 missed days | Done | Settings, then a strip above the output chart, a red pill in the summary, and chat: "Are any stages missing their target?". |

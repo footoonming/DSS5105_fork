@@ -82,6 +82,36 @@ def test_follow_up_remembers_the_order(page, B):
     assert "ORD-020" in text(b) and "ORD-020" in text(c) and c["intent"] == "trace_order"
 
 
+def test_short_follow_ups_are_about_the_order_in_focus(page, B):
+    """Found by recording conversation scenarios: after an order answer, "who is the customer?", "whose order is it?",
+    "which customer?", "how many pieces?" and "is it late?" fell to the help message or answered about the whole factory."""
+    qs = ["who is the customer?", "whose order is it?", "which customer?", "how many pieces?", "is it late?"]
+    first, *rs = ask(page, 8, "What is the status of ORD-120?", *qs)
+    o = order(B, 8, "ORD-120")
+    for q, r in zip(qs, rs):
+        assert "ORD-120" in text(r), q
+        assert r["intent"] != "fallback", q
+    assert "TrendCart" in text(rs[0]) and "TrendCart" in text(rs[1]) and "TrendCart" in text(rs[2])
+    assert f"{o['pieces']:,}" in text(rs[3])
+    assert rs[4]["intent"] == "order_status" and f"{-o['days_to_due']} days past" in text(rs[4])
+
+
+def test_follow_up_guards_do_not_hijack_factory_questions(page, B):
+    """The order in focus must not capture a question that names no order but is about the factory, and "Is it late?"
+    with nothing to refer to must still ask, not guess."""
+    _, a, b = ask(page, 8, "What is the status of ORD-120?", "Which customer has the most late orders?", "How many orders are late?")
+    assert "ORD-120 is for" not in text(a) and "ORD-120" not in a["lines"][0]
+    assert plural(B[8]["status_counts"]["late"], "order") in text(b)
+    fresh, = ask(page, 8, "Is it late?")
+    assert fresh["asks"] and fresh["intent"] == "clarify_order"
+
+
+def test_stage_follow_up_with_another_day(page, B):
+    a, b = ask(page, 8, "How did washing do yesterday?", "what about on Monday?")      # Thu 9 Apr -> Mon 6 Apr
+    h = next(x for x in B[8]["stages"]["WASHING"]["history"] if x["date"] == "2026-04-06")
+    assert b["intent"] == "stage_output" and "Washing" in text(b) and "Mon, 6 Apr" in text(b) and f"{h['value']:,}" in text(b)
+
+
 def test_vague_question_asks_which_order(page, B):
     r, = ask(page, 8, "How is the TrendCart order doing?")
     active = [o["order_id"] for o in B[8]["orders"] if o["customer"] == "TrendCart"]

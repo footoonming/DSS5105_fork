@@ -437,6 +437,9 @@ public, set a monthly OpenAI spending limit, keep secrets only in the server's `
 | Status of every sprint item | [FEATURE_STATUS.md](threadpilot/docs/FEATURE_STATUS.md) |
 | Sprint 1 slides, the source of every number on them, and what is still missing | [presentation/](threadpilot/docs/presentation/README.md) |
 | **Tool specification** (every tool: input, output, purpose, non-goals, failure mode) | [tool_spec.md](threadpilot/docs/tool_spec.md) |
+| Alert triggers: what interrupts the manager, thresholds, ranking | [alert_triggers.md](threadpilot/docs/alert_triggers.md) |
+| What it can do, what it refuses, and the worst case of each action | [actions_and_limits.md](threadpilot/docs/actions_and_limits.md) |
+| Conversation scenarios, recorded from the real chat (multi-turn, vague, unanswerable, actions) | [conversation_scenarios.md](threadpilot/docs/conversation_scenarios.md) |
 | **Evaluation** (36 + 21 questions, first-pass accuracy, limits) | [evaluation.md](threadpilot/docs/evaluation.md) |
 | Risk, expedite, forecast: method, validation, limits | [prediction_validation.md](threadpilot/docs/prediction_validation.md) |
 | Dashboard chat: tools, limits, validation | [chat_tools.md](threadpilot/docs/chat_tools.md) |
