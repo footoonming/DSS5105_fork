@@ -16,7 +16,7 @@ SOURCE = (ROOT / "simulation" / "briefing.py").read_text(encoding="utf-8")
 SHIPPED = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((ROOT / "briefings").glob("*.json"))]
 
 
-@pytest.mark.parametrize("name", ["BASELINE_WEEKS", "MIN_SAMPLES", "BAND_SD", "BAND_MIN_PCT", "IDLE_ALERT", "DUE_SOON", "TOP_N"])
+@pytest.mark.parametrize("name", ["BASELINE_WEEKS", "MIN_SAMPLES", "BAND_SD", "BAND_MIN_PCT", "SPC_SIGMA", "CUSUM_K", "CUSUM_H", "IDLE_ALERT", "DUE_SOON", "TOP_N"])
 def test_constants_table_matches_the_code(name):
     value = getattr(briefing, name)
     assert re.search(rf"\| `{name}` \| {re.escape(str(value))} \|", DOC), f"{name} = {value} is not in the constants table"
@@ -67,11 +67,11 @@ def test_backend_loop_and_confirmation_numbers_match_the_code():
 def test_counts_quoted_for_the_shipped_mornings_are_true():
     found = sum(len(b["all_findings"]) for b in SHIPPED)
     shown = sum(len(b["findings"]) for b in SHIPPED)
-    assert (len(SHIPPED), found, shown, found - shown) == (15, 105, 75, 30)
+    assert (len(SHIPPED), found, shown, found - shown) == (15, 101, 74, 27)
     assert f"{found} findings, showed {shown} and counted the other {found - shown}" in DOC
     assert max(len(b["findings"]) for b in SHIPPED) == briefing.TOP_N
     per_day = [len(b["all_findings"]) for b in SHIPPED]
-    assert (min(per_day), max(per_day)) == (5, 9) and "between\n  5 and 9 found each morning" in DOC
+    assert (min(per_day), max(per_day)) == (4, 9) and "between\n  4 and 9 found each morning" in DOC
 
 
 def test_watch_kinds_in_the_page_are_the_ones_the_chat_creates():

@@ -40,6 +40,10 @@ BASELINE_WEEKS = 8
 MIN_SAMPLES = 3
 BAND_SD = 1.5
 BAND_MIN_PCT = 0.05
+SPC_SIGMA = 3.0      # a stage is raised as a finding (an interruption) only past its 3-sigma lower limit ...
+CUSUM_K = 0.5        # ... or when a lower CUSUM of its daily z-scores (slack k, in SDs) ...
+CUSUM_H = 4.0        # ... falls below -h. Chosen by measurement: docs/spc_detection.md
+SPC_LOOKBACK = 30    # working days of history the CUSUM is accumulated over
 IDLE_ALERT = 5
 DUE_SOON = 7
 TOP_N = 5
@@ -47,6 +51,7 @@ DEFINITIONS = {
     "working_day": "Monday to Saturday; the factory is closed on Sundays",
     "yesterday": "last working day before the business date",
     "normal": f"mean of the previous {BASELINE_WEEKS} same-weekday working days; band = mean +/- max({BAND_SD} x SD, {int(BAND_MIN_PCT*100)}% of mean); needs at least {MIN_SAMPLES} samples",
+    "stage_alarm": f"a stage becomes a finding only when yesterday is below mean - {SPC_SIGMA:g} x SD (Shewhart 3-sigma), or a lower CUSUM of daily z-scores (k = {CUSUM_K:g}, h = {CUSUM_H:g}) shows a sustained shortfall; the normal band above describes the usual range, the alarm decides what interrupts the manager",
     "idle_days": "working days since last_activity_date",
     "projected_finish": "expected finish from the queue model: every stage works earliest-due-first at its usual output, new orders keep arriving (an estimate, not a commitment)",
     "risk": "overdue = past due date; high = even the best case is 5+ working days past the due date; medium = best case 1-4 working days late, or on time only if no new order goes ahead of it; low = on time even then. Confidence is how many working days the estimate sits from the due date (5+ high, 2-4 medium, under 2 low). A stalled order is raised to at least medium (high if due within 10 working days)",
@@ -98,17 +103,46 @@ def stage_normal(log_by_stage: dict[str, dict[date, dict]], stage: str, day: dat
               "evidence": ([ev(observed, ["date", "stage", "pieces_completed"])] if observed else [])
                           + [ev(r, ["date", "stage", "pieces_completed"]) for r in samples]}
     if len(samples) < MIN_SAMPLES or not is_working(day):
-        return {**result, "status": "insufficient", "mean": None, "low": None, "high": None, "pct_vs_mean": None}
+        return {**result, "status": "insufficient", "mean": None, "low": None, "high": None, "sd": None, "pct_vs_mean": None}
     values = [r["pieces_completed"] for r in samples]
     m = mean(values)
-    half = max(BAND_SD * pstdev(values), BAND_MIN_PCT * m)
-    res = {**result, "mean": round(m, 1), "low": round(m - half, 1), "high": round(m + half, 1)}
+    sd = pstdev(values)
+    half = max(BAND_SD * sd, BAND_MIN_PCT * m)
+    res = {**result, "mean": round(m, 1), "low": round(m - half, 1), "high": round(m + half, 1), "sd": round(sd, 1)}
     if observed is None:
         return {**res, "status": "no_data", "pct_vs_mean": None}
     obs = observed["pieces_completed"]
     res["pct_vs_mean"] = round(100 * (obs - m) / m, 1) if m else None
     res["status"] = "below" if obs < res["low"] else "above" if obs > res["high"] else "normal"
     return res
+
+
+def stage_alarm(log_by_stage: dict[str, dict[date, dict]], stage: str, day: date) -> dict:
+    """Should `stage`'s output on `day` interrupt the manager? Shewhart 3-sigma for a sudden drop, CUSUM for a sustained one.
+
+    Both use the same baseline as stage_normal (previous 8 same weekdays). z = (output - mean) / SD for each working day in
+    the last SPC_LOOKBACK working days; the lower CUSUM is S = min(0, S + z + k); it signals when S < -h and then restarts from 0. The study behind
+    the choice (false alarms per month against detection delay, on noise resampled from the real log) is analysis/spc_detection.py."""
+    days, probe = [], day
+    while len(days) < SPC_LOOKBACK and probe >= min(log_by_stage[stage], default=day):
+        if is_working(probe):
+            days.append(probe)
+        probe -= timedelta(days=1)
+    s, z = 0.0, None
+    for d_ in reversed(days):
+        n = stage_normal(log_by_stage, stage, d_)
+        if n["observed"] is None or n["mean"] is None:
+            continue
+        z = (n["observed"] - n["mean"]) / max(n["sd"], 1e-9)
+        s = min(0.0, s + z + CUSUM_K)
+        if d_ != day and s < -CUSUM_H:      # that earlier signal was already reported that morning: start counting again
+            s = 0.0
+    today = stage_normal(log_by_stage, stage, day)
+    z_today = None if today["observed"] is None or today["mean"] is None else (today["observed"] - today["mean"]) / max(today["sd"], 1e-9)
+    sigma = z_today is not None and z_today < -SPC_SIGMA
+    return {"alarm": bool(sigma or s < -CUSUM_H), "rule": "3-sigma" if sigma else "CUSUM" if s < -CUSUM_H else None,
+            "z": None if z_today is None else round(z_today, 2), "cusum": round(s, 2),
+            "limit": None if today["mean"] is None else round(today["mean"] - SPC_SIGMA * today["sd"], 1)}
 
 
 # ---------------------------------------------------------------- main builder
@@ -165,7 +199,8 @@ def build_rows(orders: list[dict], log: list[dict], business_date: date, previou
     # -- discovery 1: a stage whose output left its normal band yesterday
     for i, s in enumerate(STAGES):
         n = normals[s]
-        if n["status"] != "below":
+        alarm = stage_alarm(log_by_stage, s, yday)
+        if not alarm["alarm"]:
             continue
         starved = ""
         if i > 0:
@@ -173,12 +208,18 @@ def build_rows(orders: list[dict], log: list[dict], business_date: date, previou
             recent = [stage_normal(log_by_stage, up, d)["status"] for d in (yday, prev_working(yday))]
             if "below" in recent:
                 starved = f" {up.title()} was also below normal in the last two working days, so this line may be short of work rather than slow."
+        if alarm["rule"] == "3-sigma":
+            title = f"{s.title()} output was {abs(n['pct_vs_mean'])}% below normal yesterday"
+            why = f"below its 3-sigma limit of {alarm['limit']:.0f}"
+        else:
+            title = f"{s.title()} output has been running below normal"
+            why = f"a sustained shortfall: the CUSUM of recent days is {alarm['cusum']}, past its limit of -{CUSUM_H:g}"
         findings.append({
-            "key": f"stage_below:{s}", "type": "stage_below_normal", "stage": s,
-            "title": f"{s.title()} output was {abs(n['pct_vs_mean'])}% below normal yesterday",
+            "key": f"stage_below:{s}", "type": "stage_below_normal", "stage": s, "rule": alarm["rule"],
+            "title": title,
             "detail": f"{n['observed']} pieces on {yday:%a %d %b} against a normal of {n['mean']:.0f} "
-                      f"(band {n['low']:.0f}-{n['high']:.0f}, {n['samples']} same-weekday samples).{starved}",
-            "score": 40 + min(40, round(abs(n["pct_vs_mean"]))),
+                      f"(band {n['low']:.0f}-{n['high']:.0f}, {n['samples']} same-weekday samples), {why}.{starved}",
+            "score": 40 + min(40, round(abs(min(0, n["pct_vs_mean"])))),
             "score_reason": "40 + percentage below the same-weekday mean (max 40)",
             "order_ids": [], "evidence": n["evidence"]})
 

@@ -23,6 +23,14 @@ Every stage alert compares yesterday with the **previous 8 same weekdays** (Sund
 &plusmn; the larger of 1.5 standard deviations and 5% of the mean, and at least 3 samples are needed. The briefing, the chat and
 `dashboard_service.py` use this one definition, and a test holds them to the same numbers.
 
+**Describing is not interrupting.** The band answers "is this a usual day?" when the manager asks. It is deliberately wide: with
+real day-to-day noise of about 8 to 9%, an output below it happens on about 1 stage-day in 9, which would be about 12 interruptions a
+month for the whole factory. So a stage only becomes a *finding* (something the briefing raises without being asked) when it passes a
+statistical process control rule on the same baseline: below **mean - 3 SD** (a sudden drop), or a lower **CUSUM** of the daily
+z-scores past its limit (a sustained smaller drop). Measured on noise resampled from the real log, that cuts false alarms from about 12
+to about 2 a month while still catching every drop of 30% or more that lasts 3 days, on average within the first day. Small one-day dips
+(10 to 20%) are mostly not raised, by design. The study, its tables and its limits: [spc_detection.md](spc_detection.md).
+
 ## The constants
 
 | Constant | Value | Meaning |
@@ -31,6 +39,9 @@ Every stage alert compares yesterday with the **previous 8 same weekdays** (Sund
 | `MIN_SAMPLES` | 3 | Fewer samples than this and the stage is not judged |
 | `BAND_SD` | 1.5 | Band width in standard deviations |
 | `BAND_MIN_PCT` | 0.05 | Band is never narrower than 5% of the mean |
+| `SPC_SIGMA` | 3.0 | A stage becomes a finding when yesterday is below mean minus this many SDs (Shewhart 3-sigma) |
+| `CUSUM_K` | 0.5 | CUSUM slack, in SDs: daily shortfalls smaller than this do not accumulate |
+| `CUSUM_H` | 4.0 | CUSUM limit: a stage also becomes a finding when the accumulated shortfall passes this |
 | `IDLE_ALERT` | 5 | Working days without activity before an order counts as quiet |
 | `DUE_SOON` | 7 | Days to the due date that count as "due this week" |
 | `TOP_N` | 5 | Findings shown on the page; the rest are counted ("+N more") |
@@ -42,7 +53,7 @@ when its trigger is true on that morning.
 
 | Finding | Trigger | Score reason (printed on the page) | Suggested next step |
 | --- | --- | --- | --- |
-| `stage_below_normal` | A stage's output yesterday is below its normal band | 40 + percentage below the same-weekday mean (max 40) | Check with the stage supervisor |
+| `stage_below_normal` | A stage's output yesterday is below its 3-sigma lower limit, or a lower CUSUM of its recent daily z-scores passes its limit (a sustained shortfall). The 1.5 SD band only describes the usual range; it no longer raises a finding on its own ([why](spc_detection.md)) | 40 + percentage below the same-weekday mean (max 40) | Check with the stage supervisor |
 | `customer_stalled` | A customer has 2+ active orders, every one idle for 3+ working days, and all but at most one of them have later-due orders moving past them at the same stage (so the queue does not explain it) | 70 + 2 per stalled order | Call the customer's account manager |
 | `quiet_order` | 1 or 2 orders idle for 5+ working days, due within 21 days or already past due, while later-due orders moved past them at the same stage | 45 + 3 per idle working day (max 30) | Chase the order |
 | `quiet_orders` | The same, with 3 or more orders: rolled into one finding so it cannot flood the page | 55 + 5 per quiet order (max 85) | Chase the quiet orders |
@@ -123,7 +134,7 @@ sent by this loop.**
 - The thresholds (5 idle days, 7 days to due, 6 days of queued work, the +10/-4 ranking) are design choices made for this data
   set, not values fitted to a customer's tolerance. They are constants in one place so they can be changed without touching the logic, and nothing has
   yet been tuned with a real GM.
-- On the shipped 15 mornings the briefing found 105 findings, showed 75 and counted the other 30 (never more than 5 shown, between
-  5 and 9 found each morning). That is a property of this synthetic data, not a measured alert rate for a real factory.
+- On the shipped 15 mornings the briefing found 101 findings, showed 74 and counted the other 27 (never more than 5 shown, between
+  4 and 9 found each morning). That is a property of this synthetic data, not a measured alert rate for a real factory.
 - Discovery was checked against events planted in the simulator (5 of 5 found, 1 to 5 days after each started;
   `simulation/evaluate_discovery.py`, results in the README). It has not been checked against events a real factory would not label.

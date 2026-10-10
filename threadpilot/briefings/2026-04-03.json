@@ -224,106 +224,6 @@
       "action": "chase"
     },
     {
-      "key": "stage_below:ASSEMBLY",
-      "type": "stage_below_normal",
-      "stage": "ASSEMBLY",
-      "title": "Assembly output was 32.9% below normal yesterday",
-      "detail": "499 pieces on Thu 02 Apr against a normal of 743 (band 567-919, 8 same-weekday samples). Knitting was also below normal in the last two working days, so this line may be short of work rather than slow.",
-      "score": 73,
-      "score_reason": "40 + percentage below the same-weekday mean (max 40)",
-      "order_ids": [],
-      "evidence": [
-        {
-          "file": "production_log.csv",
-          "row": 367,
-          "values": {
-            "date": "2026-04-02",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 499
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 339,
-          "values": {
-            "date": "2026-03-26",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 464
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 311,
-          "values": {
-            "date": "2026-03-19",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 868
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 283,
-          "values": {
-            "date": "2026-03-12",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 755
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 255,
-          "values": {
-            "date": "2026-03-05",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 762
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 227,
-          "values": {
-            "date": "2026-02-26",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 725
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 199,
-          "values": {
-            "date": "2026-02-19",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 727
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 171,
-          "values": {
-            "date": "2026-02-12",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 859
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 143,
-          "values": {
-            "date": "2026-02-05",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 785
-          }
-        }
-      ],
-      "is_new": false,
-      "open_days": 3,
-      "rank_score": 65,
-      "rank_reason": "open 3 mornings (-8)",
-      "severity": "high",
-      "next_step": "Check with the stage supervisor",
-      "action": "note"
-    },
-    {
       "key": "quiet:ORD-005",
       "type": "quiet_order",
       "order_id": "ORD-005",
@@ -384,9 +284,159 @@
       "severity": "watch",
       "next_step": "Run a feasibility check before confirming",
       "action": "feasibility"
+    },
+    {
+      "key": "wip:ASSEMBLY",
+      "type": "wip_pileup",
+      "stage": "ASSEMBLY",
+      "title": "13 orders (14,000 pieces) are waiting at Assembly",
+      "detail": "About 10.9 days of work at Assembly's estimated 1,284 pieces a day.",
+      "score": 45,
+      "score_reason": "35 + days of queued work (max 25)",
+      "order_ids": [
+        "ORD-120",
+        "ORD-103",
+        "ORD-055",
+        "ORD-108",
+        "ORD-081",
+        "ORD-053",
+        "ORD-073",
+        "ORD-062",
+        "ORD-066",
+        "ORD-008",
+        "ORD-015",
+        "ORD-017",
+        "ORD-024"
+      ],
+      "evidence": [
+        {
+          "file": "orders.csv",
+          "row": 76,
+          "values": {
+            "order_id": "ORD-120",
+            "current_stage": "ASSEMBLY",
+            "pieces": 1500
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 91,
+          "values": {
+            "order_id": "ORD-103",
+            "current_stage": "ASSEMBLY",
+            "pieces": 2000
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 100,
+          "values": {
+            "order_id": "ORD-055",
+            "current_stage": "ASSEMBLY",
+            "pieces": 800
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 101,
+          "values": {
+            "order_id": "ORD-108",
+            "current_stage": "ASSEMBLY",
+            "pieces": 2000
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 102,
+          "values": {
+            "order_id": "ORD-081",
+            "current_stage": "ASSEMBLY",
+            "pieces": 1500
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 107,
+          "values": {
+            "order_id": "ORD-053",
+            "current_stage": "ASSEMBLY",
+            "pieces": 800
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 108,
+          "values": {
+            "order_id": "ORD-073",
+            "current_stage": "ASSEMBLY",
+            "pieces": 400
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 110,
+          "values": {
+            "order_id": "ORD-062",
+            "current_stage": "ASSEMBLY",
+            "pieces": 2000
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 111,
+          "values": {
+            "order_id": "ORD-066",
+            "current_stage": "ASSEMBLY",
+            "pieces": 1000
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 112,
+          "values": {
+            "order_id": "ORD-008",
+            "current_stage": "ASSEMBLY",
+            "pieces": 600
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 113,
+          "values": {
+            "order_id": "ORD-015",
+            "current_stage": "ASSEMBLY",
+            "pieces": 300
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 114,
+          "values": {
+            "order_id": "ORD-017",
+            "current_stage": "ASSEMBLY",
+            "pieces": 800
+          }
+        },
+        {
+          "file": "orders.csv",
+          "row": 116,
+          "values": {
+            "order_id": "ORD-024",
+            "current_stage": "ASSEMBLY",
+            "pieces": 300
+          }
+        }
+      ],
+      "is_new": false,
+      "open_days": 3,
+      "rank_score": 37,
+      "rank_reason": "open 3 mornings (-8)",
+      "severity": "watch",
+      "next_step": "Consider overtime or moving work to a workshop",
+      "action": "note"
     }
   ],
-  "more_findings": 1,
+  "more_findings": 0,
   "all_findings": [
     {
       "key": "due_soon_at_risk",
@@ -585,106 +635,6 @@
       "severity": "high",
       "next_step": "Ask the planner for revised ship dates",
       "action": "chase"
-    },
-    {
-      "key": "stage_below:ASSEMBLY",
-      "type": "stage_below_normal",
-      "stage": "ASSEMBLY",
-      "title": "Assembly output was 32.9% below normal yesterday",
-      "detail": "499 pieces on Thu 02 Apr against a normal of 743 (band 567-919, 8 same-weekday samples). Knitting was also below normal in the last two working days, so this line may be short of work rather than slow.",
-      "score": 73,
-      "score_reason": "40 + percentage below the same-weekday mean (max 40)",
-      "order_ids": [],
-      "evidence": [
-        {
-          "file": "production_log.csv",
-          "row": 367,
-          "values": {
-            "date": "2026-04-02",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 499
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 339,
-          "values": {
-            "date": "2026-03-26",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 464
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 311,
-          "values": {
-            "date": "2026-03-19",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 868
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 283,
-          "values": {
-            "date": "2026-03-12",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 755
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 255,
-          "values": {
-            "date": "2026-03-05",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 762
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 227,
-          "values": {
-            "date": "2026-02-26",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 725
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 199,
-          "values": {
-            "date": "2026-02-19",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 727
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 171,
-          "values": {
-            "date": "2026-02-12",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 859
-          }
-        },
-        {
-          "file": "production_log.csv",
-          "row": 143,
-          "values": {
-            "date": "2026-02-05",
-            "stage": "ASSEMBLY",
-            "pieces_completed": 785
-          }
-        }
-      ],
-      "is_new": false,
-      "open_days": 3,
-      "rank_score": 65,
-      "rank_reason": "open 3 mornings (-8)",
-      "severity": "high",
-      "next_step": "Check with the stage supervisor",
-      "action": "note"
     },
     {
       "key": "quiet:ORD-005",
@@ -903,10 +853,6 @@
     {
       "key": "new:ORD-121",
       "title": "New order ORD-121: 1,200 scarfs for Harbor Knits in 21 days"
-    },
-    {
-      "key": "stage_below:KNITTING",
-      "title": "Knitting output was 10.0% below normal yesterday"
     },
     {
       "key": "wip:KNITTING",
@@ -6103,6 +6049,7 @@
     "working_day": "Monday to Saturday; the factory is closed on Sundays",
     "yesterday": "last working day before the business date",
     "normal": "mean of the previous 8 same-weekday working days; band = mean +/- max(1.5 x SD, 5% of mean); needs at least 3 samples",
+    "stage_alarm": "a stage becomes a finding only when yesterday is below mean - 3 x SD (Shewhart 3-sigma), or a lower CUSUM of daily z-scores (k = 0.5, h = 4) shows a sustained shortfall; the normal band above describes the usual range, the alarm decides what interrupts the manager",
     "idle_days": "working days since last_activity_date",
     "projected_finish": "expected finish from the queue model: every stage works earliest-due-first at its usual output, new orders keep arriving (an estimate, not a commitment)",
     "risk": "overdue = past due date; high = even the best case is 5+ working days past the due date; medium = best case 1-4 working days late, or on time only if no new order goes ahead of it; low = on time even then. Confidence is how many working days the estimate sits from the due date (5+ high, 2-4 medium, under 2 low). A stalled order is raised to at least medium (high if due within 10 working days)",
