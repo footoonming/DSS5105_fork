@@ -26,7 +26,7 @@ snapshot.fixture.json 是测试种子，不是生产数据缓存。此测试模�
 
 `verify_workspace.cjs` 额外覆盖精简导航、日报请求、连续对话的 session_id / confirmation_id、逐轮证据、会话导出、全部工具入口和移动端溢出检查。桌面与手机截图默认写入系统临时目录，可通过 `WORKSPACE_SCREENSHOT_DIR` 指定已有输出目录。两组测试使用模拟 API，不验证真实模型的回答质量。
 
-导航断言包括侧边栏四个入口、Activity Log / Settings 的独立选中状态，以及这两个页面不显示工作台工具栏。模拟测试的固定答案只用于验证交互，不能作为真实业务结论。
+导航断言包括侧边栏五个入口（含指向 briefing/index.html 的 Morning Briefing 静态页链接）、Activity Log / Settings 的独立选中状态，以及这两个页面不显示工作台工具栏。模拟测试的固定答案只用于验证交互，不能作为真实业务结论。
 
 ## 真实接口联调
 

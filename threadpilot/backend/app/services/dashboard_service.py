@@ -5,14 +5,29 @@ from functools import lru_cache
 from pathlib import Path
 import json
 import math
+from statistics import mean, pstdev
 
 import sqlalchemy as sa
 from ..dashboard_store import tasks, briefings, metrics
 from ..forecast_store import load_forecasts
 from ..sql_workflow_store import SQLWorkflowStore
+from ..workflow_tools import BAND_MIN_PCT, BAND_SD
 
 LOCAL = timezone(timedelta(hours=8))
 STAGES = ['KNITTING', 'ASSEMBLY', 'WASHING', 'PACKING']
+# One definition of 'normal' for the whole product (see workflow_tools.DataTools.normality and simulation/briefing.py):
+# the previous 8 same weekdays, band = mean +/- max(BAND_SD x standard deviation, BAND_MIN_PCT x mean), at least 3 samples.
+BASELINE_WEEKS = 8
+MIN_SAMPLES = 3
+NORMAL_RULE = (f'Normal = mean of the previous {BASELINE_WEEKS} same weekdays; band = mean +/- max({BAND_SD} x standard deviation, '
+               f'{int(BAND_MIN_PCT * 100)}% of the mean); needs at least {MIN_SAMPLES} samples. Sundays excluded.')
+
+
+def normal_band(values):
+    """Mean and band of a list of same-weekday outputs."""
+    centre, spread = mean(values), pstdev(values)
+    half = max(BAND_SD * spread, BAND_MIN_PCT * centre)
+    return centre, centre - half, centre + half
 
 @lru_cache(maxsize=1)
 def forecast_asset():
@@ -79,11 +94,19 @@ def analyze(data, asset=None):
         rows = sorted([r for r in data['production_log'] if r['stage'] == stage and r['date'] < data['today']
                        and date.fromisoformat(r['date']).weekday() != 6], key=lambda r: r['date'])
         if not rows: continue
-        latest, previous = rows[-1], rows[-21:-1]
-        baseline = sum(float(r['pieces_completed']) for r in previous) / len(previous) if previous else None
-        production.append({'stage': stage, 'date': latest['date'], 'pieces': float(latest['pieces_completed']),
-                           'baseline': baseline, 'change': (float(latest['pieces_completed']) / baseline - 1) * 100 if baseline else None})
-    weakest = min((r for r in production if r['change'] is not None), key=lambda r: r['change'], default=None)
+        latest = rows[-1]
+        weekday = date.fromisoformat(latest['date']).weekday()
+        previous = [r for r in rows[:-1] if date.fromisoformat(r['date']).weekday() == weekday][-BASELINE_WEEKS:]
+        pieces = float(latest['pieces_completed'])
+        entry = {'stage': stage, 'date': latest['date'], 'pieces': pieces, 'baseline': None, 'change': None,
+                 'low': None, 'high': None, 'status': 'insufficient', 'samples': len(previous)}
+        if len(previous) >= MIN_SAMPLES:
+            centre, low, high = normal_band([float(r['pieces_completed']) for r in previous])
+            entry.update(baseline=centre, low=low, high=high, change=(pieces / centre - 1) * 100 if centre else None,
+                         status='below' if pieces < low else 'above' if pieces > high else 'within')
+        production.append(entry)
+    # A stage is only called weak when it is below its normal band; one ordinary dip is not a finding.
+    weakest = min((r for r in production if r['status'] == 'below'), key=lambda r: r['change'], default=None)
     advice = []
     if late:
         selected = sorted([r for r in evaluated if r['due_days'] < 0], key=lambda r: r['due_days'])[:3]
@@ -94,7 +117,7 @@ def analyze(data, asset=None):
             advice.append({'title': 'Review predicted delivery risk', 'text': 'These orders are not overdue yet but have elevated model risk. Verify progress and capacity with production.',
                            'orders': [r['order_id'] for r in selected], 'probabilities': {r['order_id']: r['prediction']['delay_probability'] for r in selected}})
     if weakest and weakest['change'] < 0:
-        advice.append({'title': f"Check {weakest['stage'].title()} capacity", 'text': f"Latest output is {abs(weakest['change']):.1f}% below the previous {min(20, len(data['production_log']))} working-day baseline. Check staffing, WIP and upstream supply before reallocating work.", 'orders': []})
+        advice.append({'title': f"Check {weakest['stage'].title()} capacity", 'text': f"Latest output is {abs(weakest['change']):.1f}% below the mean of the previous {weakest['samples']} same weekdays and outside the normal band ({weakest['low']:.0f} to {weakest['high']:.0f}). Check staffing, WIP and upstream supply before reallocating work.", 'orders': []})
     # Compare queue + pickup + full-order production, never allocate multiple orders to the same capacity.
     candidates = sorted([r for r in evaluated if r['reasons']], key=lambda r: (r['due_days'], -r['score']))
     if candidates:
@@ -118,7 +141,7 @@ def analyze(data, asset=None):
             'orders': [r['order_id'] for r in urgent], 'source': 'priority'})
     if weakest and weakest['change'] < 0:
         concise.append({'title': f"Restore {weakest['stage'].title()} output",
-            'text': f"Output is {abs(weakest['change']):.1f}% below baseline. Check staffing and upstream supply before reallocating work.",
+            'text': f"Output is {abs(weakest['change']):.1f}% below normal ({weakest['low']:.0f} to {weakest['high']:.0f}). Check staffing and upstream supply before reallocating work.",
             'orders': [], 'source': 'production'})
     external = next((a for a in advice if a.get('options')), None)
     if external:
@@ -210,13 +233,15 @@ class DashboardService:
     def compose_briefing(self, data, result, now):
         yesterday = (date.fromisoformat(data['today']) - timedelta(days=1)).isoformat()
         output = [r for r in data['production_log'] if r['date'] == yesterday]
-        worst = min((r for r in result['production'] if r['change'] is not None), key=lambda r:r['change'], default=None)
+        flagged = [r for r in result['production'] if r['status'] in ('below', 'above')]
+        worst = max(flagged, key=lambda r: abs(r['change']), default=None)
         queued = sorted([r for r in result['orders'] if r['reasons']], key=lambda r:(r['due_days'], -r['score']))
         top = queued[0] if queued else None
         completed = [r for r in self.list_tasks() if r['done'] and r['updated_at'][:10] == now.date().isoformat()]
         payload = {'yesterday': f"{sum(int(float(r['pieces_completed'])) for r in output):,} stage completions across {len(set(r['stage'] for r in output))} stages on {yesterday}." if output else f'No production record for {yesterday}.',
                    'top_issue': f"{top['order_id']} · {top['customer']}: {', '.join(top['reasons']).lower()}." if top else 'No orders currently flagged.',
                    'decide': f"{result['counts']['overdue']} overdue; {sum(0 <= r['due_days'] <= 7 for r in result['orders'])} due within 7 days.",
-                   'production_note': f"{worst['stage'].title()} {abs(worst['change']):.1f}% {'below' if worst['change'] < 0 else 'above'} baseline." if worst else None,
+                   'production_note': (f"{worst['stage'].title()} {abs(worst['change']):.1f}% {worst['status']} normal ({worst['low']:.0f} to {worst['high']:.0f})." if worst
+                                        else 'All stages within their normal range.' if any(r['status'] == 'within' for r in result['production']) else None),
                    'cleared': [r['title'] for r in completed], 'health': result['health'], 'advice': result['advice']}
         return payload

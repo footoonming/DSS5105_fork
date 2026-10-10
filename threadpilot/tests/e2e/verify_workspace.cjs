@@ -36,7 +36,8 @@ const screenshots = process.env.WORKSPACE_SCREENSHOT_DIR || require('os').tmpdir
   try {
     await page.goto(`http://127.0.0.1:${server.address().port}/#/ai`);
     await page.locator('.copilot-workspace').waitFor();
-    assert.equal(await page.locator('.sidebar nav a').count(),4);
+    assert.equal(await page.locator('.sidebar nav a').count(),5);   // Dashboard, Morning Briefing, AI workspace, Activity Log, Settings
+    assert.equal(await page.locator('.sidebar nav a[href="briefing/index.html"]').count(),1);
     await page.getByRole('button',{name:'Generate daily report ↗'}).click();
     await page.getByText('Verified order result 1',{exact:true}).waitFor();
     await page.locator('[name=visible-question]').fill('Why this order?');

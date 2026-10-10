@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from .. import briefing_email
 from sqlalchemy.exc import SQLAlchemyError
-from ..services.dashboard_service import DashboardService, LOCAL
+from ..services.dashboard_service import DashboardService, LOCAL, NORMAL_RULE
 from ..services.snapshot_service import snapshot
 from ..sql_workflow_store import WorkflowBusy
 from ..workflow_api import business_now
@@ -124,7 +124,7 @@ def diagnosis_source(kind: str, request: Request):
                 'forecast':result['forecast'],'batch_id':asset.get('batch_id'),'health':result['health'],
                 'orders':result['orders']}
     if kind=='production':
-        return {'business_date':data['today'],'calculation':'Latest recorded working-day output against prior 20 working days; Sundays excluded. Stage totals are not order-level output.',
+        return {'business_date':data['today'],'calculation':NORMAL_RULE+' Stage totals are not order-level output.',
                 'comparison':result['production'],'records':data['production_log']}
     return {'business_date':data['today'],'calculation':'Full order quantity / (capacity * (1 - defect rate)) + queue days + pickup days. ACTIVE compatible workshops within batch limits only. Exclusive capacity; no joint allocation.',
             'orders':data['orders'],'workshops':data['workshops']}

@@ -4,11 +4,15 @@ import math
 import re
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
-from statistics import mean
+from statistics import mean, pstdev
 from typing import Any
 
 from .schemas import Evidence, Slots
 
+# One definition of 'normal' for the whole product (briefing, dashboard, chat tools): the previous 8 same weekdays,
+# band = mean +/- max(BAND_SD x standard deviation, BAND_MIN_PCT x mean). Kept in step with simulation/briefing.py by a test.
+BAND_SD = 1.5
+BAND_MIN_PCT = 0.05
 STAGES = ['KNITTING', 'ASSEMBLY', 'WASHING', 'PACKING']
 
 
@@ -138,12 +142,18 @@ class DataTools:
             return {'status': 'insufficient_baseline_or_observation', 'date': target.isoformat(),
                     'sample_count': len(baseline), 'note': 'Need at least 3 prior same-weekday working records and an observation.'}, baseline + observed
         values = [int(e.record['pieces_completed']) for e in baseline]
+        centre = mean(values)
+        spread = pstdev(values)
+        half = max(BAND_SD * spread, BAND_MIN_PCT * centre)   # the one definition of normal, shared with the morning briefing
+        low, high = centre - half, centre + half
         return {'stage': slots.stage, 'date': target.isoformat(), 'output': output,
                 'observation_source': provenance, 'user_observation': slots.observed_output,
                 'sample_count': len(values), 'baseline': 'previous eight same weekdays, excluding target and future dates',
-                'minimum': min(values), 'maximum': max(values), 'mean': round(mean(values), 2),
-                'status': 'below' if output < min(values) else 'above' if output > max(values) else 'within',
-                'limits': 'Descriptive historical range, not a statistical control limit. One low observation alone is not proof of a sustained problem.'}, baseline + observed
+                'rule': 'normal band = mean +/- max(1.5 x standard deviation, 5% of the mean)',
+                'minimum': min(values), 'maximum': max(values), 'mean': round(centre, 2), 'standard_deviation': round(spread, 2),
+                'band_low': round(low, 1), 'band_high': round(high, 1),
+                'status': 'below' if output < low else 'above' if output > high else 'within',
+                'limits': 'Descriptive historical band, not a statistical control limit. One low observation alone is not proof of a sustained problem.'}, baseline + observed
 
     def deviation(self, slots: Slots, now: datetime) -> tuple[dict[str, Any], list[Evidence]]:
         """场景 2.2：展示当日上下游和同 weekday 对照，不把共现当因果。"""

@@ -21,7 +21,7 @@ function miniTrend(key){
 }
 function dashboardKpis(){
  const high=ranked.filter(o=>o.score>=60),counts=dashboardData?.counts;
- return `<div class="grid kpis dashboard-kpis">${[['In progress',activeOrders.length,'orders?status=In%20progress','of 120 total orders'],['Overdue',overdue.length,'orders?due=Overdue','active orders only'],['Due today',dueToday.length,'orders?due=Today','review delivery readiness'],['Idle ≥5 days',idleOrders.length,'orders?idle=5','check the latest status'],['Priority ≥60',high.length,'risk','priority score']].map(([title,value,url,sub],i)=>{
+ return `<div class="grid kpis dashboard-kpis">${[['In progress',activeOrders.length,'orders?status=In%20progress',`of ${orders.length} total orders`],['Overdue',overdue.length,'orders?due=Overdue','active orders only'],['Due today',dueToday.length,'orders?due=Today','review delivery readiness'],['Idle ≥5 days',idleOrders.length,'orders?idle=5','check the latest status'],['Priority ≥60',high.length,'risk','priority score']].map(([title,value,url,sub],i)=>{
  const key=dashboardKeys[i],n=counts?.[key]??value,denom=i===0?orders.length:(counts?.in_progress??activeOrders.length);
  return `<a class="kpi" href="#/${url}"><span>${title}</span><div class="metric-value"><strong>${n}</strong>${miniTrend(key)}</div><small>${sub} ↗</small><div class="metric-comparison" role="img" aria-label="${n} of ${denom} orders"><i style="width:${denom?Math.min(100,n/denom*100):0}%"></i></div><small>${n} / ${denom} ${i===0?'total':'active'}</small></a>`;
  }).join('')}</div>`;
