@@ -1753,6 +1753,7 @@
           "execution.reminder",
           "briefing.today",
           "data.unavailable",
+          "discovery.findings",
           "unknown"
         ],
         "title": "Intent"

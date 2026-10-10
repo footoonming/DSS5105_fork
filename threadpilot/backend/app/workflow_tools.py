@@ -7,6 +7,7 @@ from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any
 
+from . import discovery
 from .schemas import Evidence, Slots
 
 # One definition of 'normal' for the whole product (briefing, dashboard, chat tools): the previous 8 same weekdays,
@@ -126,8 +127,19 @@ class DataTools:
             raise ValueError('Unknown or duplicate order ID')
         return matches[0]
 
-    def assess_risk(self, order: Evidence, now: datetime) -> dict[str, Any]:
-        """场景 1.3：把已完成迟交、当前逾期和风险判断分别计算。"""
+    def findings(self, now: datetime) -> dict[str, Any]:
+        """Tool list_findings (discovery): the ranked findings of the morning-briefing engine, recomputed from current rows."""
+        return discovery.findings(self, now.date())
+
+    def risk_levels(self, now: datetime) -> dict[str, dict[str, Any]]:
+        """Risk level per in-progress order from the briefing engine's queue projection: one definition of risk for every screen."""
+        return discovery.risk_levels(self, now.date())
+
+    def assess_risk(self, order: Evidence, now: datetime, levels: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+        """场景 1.3：把已完成迟交、当前逾期和风险判断分别计算。
+
+        The risk LEVEL is the dashboard's projection (overdue / high / medium / low). The review triggers (idle 7+ days, due within 7
+        days) are kept as plain facts about what to look at; they are not a second definition of risk."""
         row = order.record
         idle = max(0, (now.date() - date.fromisoformat(row['last_activity_date'])).days)
         due_days = (date.fromisoformat(row['due_date']) - now.date()).days
@@ -137,10 +149,22 @@ class DataTools:
             reasons.append(f'No recorded activity for {idle} days (review threshold: 7 days).')
         if not complete and due_days <= 7:
             reasons.append(f'Due in {due_days} days (review window: 7 days).')
-        return {'order_id': row['order_id'], 'idle_days': idle, 'days_to_due': due_days,
-                'overdue': not complete and due_days < 0, 'completed_late': complete and int(row['days_late'] or 0) > 0,
-                'reasons': reasons, 'risk_flag': bool(reasons),
-                'limits': 'A risk flag is not confirmed late delivery. No per-order event history or recorded blockers exists in this dataset.'}
+        out = {'order_id': row['order_id'], 'idle_days': idle, 'days_to_due': due_days,
+               'overdue': not complete and due_days < 0, 'completed_late': complete and int(row['days_late'] or 0) > 0,
+               'review_triggers': reasons, 'review_flag': bool(reasons)}
+        if complete:
+            out['risk_level'] = 'complete'
+        else:
+            projection = (self.risk_levels(now) if levels is None else levels).get(row['order_id'])
+            if projection:
+                out.update(risk_level=projection['level'], risk_reason=projection['reason'], confidence=projection['confidence'],
+                           best_finish=projection['best_date'], expected_finish=projection['expected_date'], stalled=projection['stalled'])
+            else:
+                out.update(risk_level='unknown', risk_reason='Not enough production history to project the queue.')
+        out['risk_rule'] = discovery.RISK_RULE
+        out['limits'] = ('A risk level is a projection under stated assumptions, not confirmed late delivery. Review triggers say what to look '
+                         'at, not how likely it is to be late. No per-order event history or recorded blockers exists in this dataset.')
+        return out
 
     def prioritize(self, slots: Slots, now: datetime) -> tuple[dict[str, Any], list[Evidence]]:
         """场景 1.6：到期窗口包含逾期未完成订单，按截止日、旧更新、ID 排序。"""
@@ -149,8 +173,9 @@ class DataTools:
                 and date.fromisoformat(e.record['due_date']) <= end
                 and (not slots.customer or e.record['customer'].casefold() == slots.customer.casefold())]
         rows.sort(key=lambda e: (e.record['due_date'], e.record['last_activity_date'], e.record['order_id']))
+        levels = self.risk_levels(now)
         return {'window_end': end.isoformat(), 'rule': 'Earlier due date first; ties: older last activity, then order ID. Includes overdue active orders. No opaque score.',
-                'orders': [self.assess_risk(e, now) for e in rows]}, rows
+                'orders': [self.assess_risk(e, now, levels) for e in rows]}, rows
 
     def normality(self, slots: Slots, now: datetime) -> tuple[dict[str, Any], list[Evidence]]:
         """场景 2.1：使用前八个同 weekday 的原始行比较，单次低值不确诊。"""

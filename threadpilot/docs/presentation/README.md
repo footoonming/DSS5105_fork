@@ -56,11 +56,10 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 6 | The **probability and impact ratings** are the drafter's judgement, not measured | See the checklist below |
 | 7 | "Today every question is asked on 1 April 2026"; the forecast is no better than repeating the last period | [failure_analysis.md](../failure_analysis.md), last section; [prediction_validation.md](../prediction_validation.md), section 3 |
 | 7 | The **risk levels** are the drafter's judgement, not measured | See the checklist below |
-| 8 | The read-only SQL tool is built and tested but not wired to the AI page | [tool_boundaries.md](../tool_boundaries.md), "Retrieval decision" |
-| 8 | Briefing's 8 finding types to be moved onto MySQL and the cloud site | [alert_triggers.md](../alert_triggers.md), "The 8 kinds of finding"; [tool_boundaries.md](../tool_boundaries.md) |
+| 8 | The briefing still has to reach the team's cloud site (merge and redeploy); the two feasibility methods can disagree | [FEATURE_STATUS.md](../FEATURE_STATUS.md); [tool_boundaries.md](../tool_boundaries.md), "Where our own tools disagree" |
 | 8 | **Success criteria** (live first pass reported as run, 70% on blind questions, no unsourced number, public links, an owner per feature) | **Proposed**, drawn from the repository's own results (69% first pass) and the course's Sprint 2 rule that the GitHub and demo links are public and on the first slide; the team has not agreed them |
 | 8 | Sprint 1 Fri 16 Oct, Sprint 2 Fri 30 Oct, Sprint 3 Fri 13 Nov, final zip Sun 15 Nov 2026 | Capstone_Project_Spec_v5 |
-| 9 | 36 tools (17 live, 19 dashboard); 27 boundary questions | [tool_spec.md](../tool_spec.md); [tool_boundaries.md](../tool_boundaries.md) |
+| 9 | 37 tools (18 live, 19 dashboard); 27 boundary questions | [tool_spec.md](../tool_spec.md); [tool_boundaries.md](../tool_boundaries.md) |
 | 10 | Confirmation card with the worst case; chase logged, nothing sent; "Delete ORD-005" refused; 15-minute key | [`screens/06`, `07`](screens/); [actions_and_limits.md](../actions_and_limits.md) |
 | 11 | The 11 first-pass failures, by cause (5, 5, 1) and the three found by probing | [failure_analysis.md](../failure_analysis.md) |
 | 12 | Feasibility answer (800 hoodies by the 25th: finishes 1 to 8 May, bottleneck Packing) and a watch that fires on 10 April | [`screens/05`, `08`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S5, S7) |

@@ -25,6 +25,7 @@ class Intent(StrEnum):
     EXECUTION_REMINDER = 'execution.reminder'
     BRIEFING_TODAY = 'briefing.today'
     DATA_UNAVAILABLE = 'data.unavailable'
+    DISCOVERY_FINDINGS = 'discovery.findings'
     UNKNOWN = 'unknown'
 
 

@@ -111,6 +111,8 @@ class WorkflowEngine:
             return self.refuse(message, result, state, now, calls, evidence)
         if result.confidence >= 0.65 and intent == Intent.BRIEFING_TODAY:
             return self.briefing(result, state, now, calls, evidence)
+        if result.confidence >= 0.65 and intent == Intent.DISCOVERY_FINDINGS:
+            return self.discover(result, state, now, calls, evidence)
         if state.comparison_orders and not explicit_ids and intent not in (Intent.ORDER_COMPARE, Intent.ORDER_COMMITMENT, Intent.ORDER_PRIORITIZE, Intent.OPERATIONS_NORMALITY, Intent.OPERATIONS_DEVIATION):
             return self.ask('Which order do you mean: ' + ', '.join(state.comparison_orders) + '?', state, result, now, calls, evidence)
         if result.confidence < 0.65 or intent == Intent.UNKNOWN:
@@ -216,7 +218,10 @@ class WorkflowEngine:
             elif intent == Intent.ORDER_RISK:
                 risk = self.tools.assess_risk(order, now)
                 calls.append(ToolCall(name='assess_order_risk', arguments={'order_id': order_id}, result=risk))
-                answer = self.order_facts(order) + '\nFacts and risk interpretation:\n' + json.dumps(risk, indent=2)
+                level = risk['risk_level']
+                lead = (f"Risk level: {level.upper()} (the same queue projection the dashboard uses). {risk['risk_reason']}."
+                        if 'risk_reason' in risk else 'This order is complete, so it has no risk level.')
+                answer = lead + '\n' + self.order_facts(order) + '\nFacts and risk interpretation:\n' + json.dumps(risk, indent=2)
                 answer += '\nA risk pattern does not establish that it will be late. Request a status update if needed.'
             else:
                 return self.execution(message, result, state, now, calls, evidence, order, previous_slots)
@@ -241,6 +246,9 @@ class WorkflowEngine:
                  f"Yesterday: {saved['yesterday']}", f"Top issue: {saved['top_issue']}", f"Decide today: {saved['decide']}"]
         if saved.get('production_note'):
             lines.append(f"Production: {saved['production_note']}")
+        found = saved.get('findings') or []
+        if found:
+            lines.append('Found without being asked: ' + ' '.join(f"{i}. {f['title']}." for i, f in enumerate(found[:3], 1)))
         health = saved.get('health') or {}
         if health:
             lines.append('Orders in progress: ' + ', '.join(f'{health[k]} {k.replace("_", " ")}' for k in ('late', 'at_risk', 'on_track') if k in health) + '.')
@@ -252,6 +260,35 @@ class WorkflowEngine:
                 self.select(match[0], state, calls, evidence)
             except ValueError:
                 pass
+        return self.response(state, result, now, '\n'.join(lines), calls, evidence)
+
+    def discover(self, result: Classification, state: DialogState, now: datetime,
+                 calls: list[ToolCall], evidence: list[Evidence]) -> ChatResponse:
+        """Tool list_findings (discovery): what is unusual right now, found without being asked, ranked by a stated score.
+
+        The findings, their scores and their wording come from the morning-briefing engine, run now on the current rows. The model
+        only chose this intent. Every finding brings the rows it was computed from."""
+        found = self.tools.findings(now)
+        rows = found.pop('_evidence')
+        evidence.extend(rows)
+        calls.append(ToolCall(name='list_findings', arguments={'business_date': found['business_date']}, result=found))
+        top = found['findings']
+        if not top:
+            return self.response(state, result, now, f"Nothing crosses an alert threshold as of {found['business_date']}. "
+                                 f"Data runs to {found['data_through']}.", calls, evidence)
+        lines = [f"What stands out on {found['business_date']} (found without being asked, data up to {found['data_through']}):"]
+        for i, f in enumerate(top, 1):
+            lines.append(f"{i}. {f['title']}. {f['detail']} Next step: {f['next_step']}.")
+        if found['more_findings']:
+            lines.append(f"{found['more_findings']} smaller findings are not shown; only the top {len(top)} make the list.")
+        lines.append('Ranking: each finding has a stated score (shown with it in the tool result); this is a pattern in the data, not a confirmed cause.')
+        ids = list(dict.fromkeys(i for f in top for i in f['order_ids']))
+        if len(top[0]['order_ids']) == 1:   # so that "why?" or "chase it" next has an order to talk about
+            try:
+                self.select(top[0]['order_ids'][0], state, calls, evidence)
+            except ValueError:
+                pass
+        state.last_order_ids = ids[:10] or state.last_order_ids
         return self.response(state, result, now, '\n'.join(lines), calls, evidence)
 
     def select(self, order_id: str, state: DialogState, calls: list[ToolCall], evidence: list[Evidence]) -> Evidence:

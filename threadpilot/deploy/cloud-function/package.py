@@ -8,6 +8,7 @@ vendor = root / '.build/cloud-function-full'
 if not (vendor / 'fastapi/__init__.py').exists():
     raise SystemExit('Install Linux/Python 3.11 requirements into .build/cloud-function-full first.')
 output = root / 'dist/threadpilot-backend-python311.zip'
+ENGINE = ('__init__.py', 'briefing.py', 'prediction.py', 'workdays.py')
 output.parent.mkdir(exist_ok=True)
 
 
@@ -32,6 +33,9 @@ with ZipFile(output, 'w', ZIP_DEFLATED) as archive:
                 add(archive, path, path.relative_to(root).as_posix())
     for name in ('__init__.py', 'cloud_serve.py'):
         add(archive, root / 'backend/scripts' / name, 'backend/scripts/' + name)
+    # The discovery and risk engine shared with the morning briefing (backend/app/discovery.py imports it).
+    for name in ENGINE:
+        add(archive, root / 'simulation' / name, 'simulation/' + name)
     for path in sorted(vendor.rglob('*')):
         if path.is_file():
             add(archive, path, path.relative_to(vendor).as_posix())

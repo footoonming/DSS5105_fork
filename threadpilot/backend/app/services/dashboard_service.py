@@ -9,6 +9,7 @@ from statistics import mean, pstdev
 
 import sqlalchemy as sa
 from ..dashboard_store import tasks, briefings, metrics
+from ..discovery import saved_findings
 from ..forecast_store import load_forecasts
 from ..sql_workflow_store import SQLWorkflowStore
 from ..workflow_tools import BAND_MIN_PCT, BAND_SD
@@ -243,5 +244,7 @@ class DashboardService:
                    'decide': f"{result['counts']['overdue']} overdue; {sum(0 <= r['due_days'] <= 7 for r in result['orders'])} due within 7 days.",
                    'production_note': (f"{worst['stage'].title()} {abs(worst['change']):.1f}% {worst['status']} normal ({worst['low']:.0f} to {worst['high']:.0f})." if worst
                                         else 'All stages within their normal range.' if any(r['status'] == 'within' for r in result['production']) else None),
-                   'cleared': [r['title'] for r in completed], 'health': result['health'], 'advice': result['advice']}
+                   'cleared': [r['title'] for r in completed], 'health': result['health'], 'advice': result['advice'],
+                   # Discovery: the same eight kinds of finding as the briefing page, so the saved briefing and the chat agree.
+                   'findings': saved_findings(data)}
         return payload

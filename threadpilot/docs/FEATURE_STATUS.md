@@ -15,6 +15,7 @@ Status key: **Done** (built and tested), **Built, with caveats** (works; read th
 | 5 | Conversation scenarios, including multi-turn | Done | [conversation_scenarios.md](conversation_scenarios.md): nine scenarios recorded from the real chat (vague question, follow-ups, unanswerable, feasibility, actions, watches). A test records them again, so the page shows what the chat does today. Recording them exposed six follow-ups that lost the thread; they are fixed and tested. |
 | 6 | Boundaries between tools | Done | [tool_boundaries.md](tool_boundaries.md): the rules that draw each line, the retrieval decision and the failure we accepted, 27 questions recorded from the real chat with the tool that must and must not answer, and the places where our own tools disagree. A test re-records it. Probing found three chat defects (the manager's own number ignored, a stalled customer answered with an idle-order list, "show all orders" refused); all fixed and tested. |
 | 7 | Live-path tools for the briefing and for refusing | Built, with caveats | `get_briefing` (reads the saved 07:00 briefing) and `explain_no_data` (says what the data does not hold) in `backend/app/`, tested with a stand-in classifier. **How often the live model picks these two intents is not measured.** |
+| 8 | Discovery and one risk rule on the live path | Built, with caveats | `list_findings` on the live backend runs the briefing's own engine (eight kinds of finding, ranked by a stated score) on the database, and the saved 07:00 briefing carries the same findings. `assess_order_risk` now reports the dashboard's projected risk level. `backend/tests/test_discovery.py` holds both to the briefing page on four mornings, including a planted stalled customer. **How often the live model picks `discovery.findings` is not measured.** |
 | **Interface and settings** | | | |
 | 1 | Font size and typeface | Done | Settings: text size S, M, L, XL; typeface System, Inter, Serif, Monospace. Saved in the browser. |
 | 2 | Target per stage, highlighted after 3 missed days | Done | Settings, then a strip above the output chart, a red pill in the summary, and chat: "Are any stages missing their target?". |
@@ -57,7 +58,7 @@ Be ready for these three questions:
 | Deliverable | Status | Where |
 |---|---|---|
 | English README | Done | [README.md](../../README.md) |
-| One-table tool specification (name, input, output, purpose, non-goals, failure mode) | Done: 36 entries (17 live, 19 dashboard); a test checks the live names against the code | [tool_spec.md](tool_spec.md) |
+| One-table tool specification (name, input, output, purpose, non-goals, failure mode) | Done: 37 entries (18 live, 19 dashboard); a test checks the live names against the code | [tool_spec.md](tool_spec.md) |
 | Evaluation set of 30+ questions with 5+ ambiguous or unanswerable and 5+ feasibility or action | Done: 36 questions, plus 21 held out. **Backend (live model) accuracy not yet measured** | [evaluation.md](evaluation.md) |
 | 10+ failure cases, each analysed individually | Done: the 11 first-pass failures plus 3 found by probing | [failure_analysis.md](failure_analysis.md) |
 | A page of honest reasoning about the boundaries between tools | Done | [tool_boundaries.md](tool_boundaries.md) |

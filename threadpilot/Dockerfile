@@ -4,6 +4,8 @@ WORKDIR /srv/threadpilot
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
+# The discovery and risk engine shared with the morning briefing (standard library only; see backend/app/discovery.py)
+COPY simulation/__init__.py simulation/briefing.py simulation/prediction.py simulation/workdays.py ./simulation/
 COPY frontend ./frontend
 COPY data/dictionary ./data/dictionary
 COPY data/migrations ./data/migrations

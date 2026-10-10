@@ -116,6 +116,16 @@ def build(folder: Path, business_date: date | None = None, previous: dict | None
     if business_date is None:
         business_date = date.fromisoformat((folder / "business_date.txt").read_text().strip())
     orders, log = load(folder)
+    return build_rows(orders, log, business_date, previous)
+
+
+def build_rows(orders: list[dict], log: list[dict], business_date: date, previous: dict | None = None) -> dict:
+    """The same briefing from rows already in memory. Used by the live backend, which reads its rows from the database.
+
+    Each row needs the CSV columns plus `_file` and `_row` (where it came from), with `pieces` and `pieces_completed`
+    as integers. The rows are not modified; the briefing works on copies."""
+    orders = [dict(o) for o in orders]
+    log = [dict(r) for r in log]
     log = [r for r in log if date.fromisoformat(r["date"]) < business_date]  # nothing from the future
     log_by_stage: dict[str, dict[date, dict]] = defaultdict(dict)
     for r in log:

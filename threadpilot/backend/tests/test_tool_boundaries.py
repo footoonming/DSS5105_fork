@@ -173,6 +173,7 @@ def test_the_tool_spec_lists_exactly_the_tools_the_engine_emits(tmp_path, busine
     say('confirm', 'execution.reminder', s)
     say('Did anything go wrong yesterday?', 'briefing.today')
     say("What's our revenue?", 'data.unavailable')
+    say('Anything unusual?', 'discovery.findings')
 
     endpoints = {'ask_database', 'evidence'}          # B14 is the SQL-agent endpoint and B15 is GET /api/v1/evidence: neither is a chat ToolCall
     assert seen == in_spec - endpoints, (f'spec-only: {sorted(in_spec - endpoints - seen)}; engine-only: {sorted(seen - in_spec)}. '

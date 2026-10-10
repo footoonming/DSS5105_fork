@@ -1,8 +1,8 @@
 # Where one tool ends and the next begins
 
 The track brief says a team that ships well-specified tools "and a page of honest reasoning about the boundaries between them" will
-outscore a team with a bigger model and no design. This is that page. The tool-by-tool table is `docs/tool_spec.md` (36 entries:
-B1 to B17 on the live backend, D1 to D19 in the dashboard chat); this page is about the edges: when two tools could both answer, which
+outscore a team with a bigger model and no design. This is that page. The tool-by-tool table is `docs/tool_spec.md` (37 entries:
+B1 to B18 on the live backend, D1 to D19 in the dashboard chat); this page is about the edges: when two tools could both answer, which
 one does, and why the line is drawn there.
 
 The table in the middle is not written by hand. `scripts/record_boundaries.py` asks each question of the real dashboard chat and fails
@@ -107,19 +107,22 @@ was written" marks the lines that were wrong until we probed them (see below).
 
 Boundaries are also the places where the design is not finished. These are real and known:
 
-- **"Risk" has three meanings.** The risk *flag* on the live path (`B3`, idle 7+ days or due within 7 days), the risk *level* in the
-  dashboard (`D11`, a day-by-day projection of the queue) and the Dashboard screen's own priority score. They measure different things
-  and can disagree. `docs/tool_spec.md` says which is which; moving the live path onto the projection is the main integration step left.
+- **"Risk" now has one meaning in both chats.** It used to have three: the live path's 7-day *flag*, the dashboard chat's projected *level*
+  and the Dashboard screen's priority score. The live tool `assess_order_risk` now reports the projected level from the same engine as the
+  briefing (`backend/app/discovery.py`), and a test holds the two to the same level for every order on four mornings. The 7-day rule survives
+  only as "review triggers", labelled as facts about what to look at. The team's Dashboard screen still ranks its task list with its own
+  priority score and imported delay model; it is one screen, and its own "How is this calculated?" panel says so.
 - **"Can we take it?" has two methods.** `B9` adds each stage's days in series on top of the whole backlog (very cautious). `D10` returns
   a range from the queue and the recent arrival rate, and was checked against the team's own simulator (14 of 14 ranges contained the real
-  finish). The same question can get different dates from the two paths. Both state their assumptions and neither promises a date.
-- **"What should I look at first?" has two orderings.** The dashboard ranks *findings* by score (`list_findings`); the live path orders
-  *orders* by due date, then oldest activity (`B4`). Neither is wrong; they answer "what is unusual" and "what is due".
-- **Two morning briefings.** The dashboard chat reads the 15 simulated mornings built by `simulation/briefing.py` (eight kinds of
-  finding, ranked, with the formula printed). The live path's `get_briefing` reads the briefing the cloud timer saves at 07:00, which
-  comes from `dashboard_service.compose_briefing` and is simpler (yesterday, the top flagged order, what to decide). Bringing the
-  eight finding types onto the live data is a Sprint 2 item. The definition of "normal" is already shared and a test holds the two to
-  identical numbers.
+  finish). The same question can get different dates from the two paths. Both state their assumptions and neither promises a date. This is
+  the main disagreement left.
+- **"What should I look at first?" has two orderings.** Findings ranked by score (`list_findings`, both paths) answer "what is unusual";
+  the live path's `B4` orders *orders* by due date, then oldest activity, and answers "what is due". Neither is wrong; they answer different
+  questions, and the classifier is told which is which.
+- **One discovery engine, two moments.** The live chat's `list_findings` recomputes the eight kinds of finding from the database when asked.
+  `get_briefing` reads the briefing saved at 07:00, which now carries the same findings from the same engine. They can differ only if the
+  data changed since 07:00, which is the point of asking again. The 07:00 summary lines (yesterday, top issue, decide) still come from
+  `dashboard_service.compose_briefing`.
 
 ## What exists on which path
 
@@ -128,11 +131,11 @@ Boundaries are also the places where the design is not finished. These are real 
 | Retrieval | `search_orders`, `refresh_order`, `prioritize_orders`, `compare_orders`, `rank_comparison`; `ask_database` (endpoint only) | `get_briefing_summary`, `list_orders`, `get_order`, `get_customer`, `list_customers`, `get_pipeline`, `get_on_time`, `get_forecast` |
 | Judgement | `assess_order_risk`, `check_normality`, `explain_deviation`, `estimate_capacity` | `get_stage_output`, `check_feasibility`, `list_by_risk`, `assess_expedite`, `get_target_status` |
 | Tracing | `evidence` (the record behind a number) | `trace_order`, plus "Show detail" on every reply |
-| Discovery | `get_briefing` (new; the saved 07:00 briefing) | `list_findings` (eight kinds of finding, ranked) |
+| Discovery | `list_findings` (the same eight kinds of finding, recomputed from the database); `get_briefing` (the saved 07:00 briefing, which carries them too) | `list_findings` (eight kinds of finding, ranked) |
 | Action | `draft_chase`, `send_chase`, `save_internal_note`, `upsert_reminder` | `draft_chase`, `add_note`, `create_watch` |
 | Refusal | `explain_no_data` (new) | `explain_no_data` |
 
-The live path has nothing for customers, the pipeline, on-time delivery, the order forecast, expediting or stage targets. The dashboard
+Discovery and the risk level are now the same on both paths. The live path still has nothing for customers, the pipeline, on-time delivery, the order forecast, expediting or stage targets. The dashboard
 chat has all of them. A manager who asks the live chat "how is TrendCart doing?" gets a lookup that asks which order. That gap is real
 and is the reason the dashboard chat, not the live chat, carries the recorded scenarios and the 36-question evaluation.
 
