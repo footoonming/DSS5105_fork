@@ -58,10 +58,37 @@ def resolve_date(value: str, now: datetime) -> date:
     return now.date().replace(day=int(match[1])) if match else date.fromisoformat(value)
 
 
+# What this system does not hold. The wording is chosen by plain code from the user's own words, never written by the model, so the
+# refusal cannot be talked into inventing a figure. Order matters: the first matching reason wins.
+NO_DATA_REASONS = [
+    ('modify', re.compile(r'\b(cancel|delete|remove|void|reschedule|reassign|postpone)\b.*\b(order|ord-?\d+)|\b(change|update|edit|move|extend|push back)\b.*\bdue date\b', re.I),
+     "I can't cancel, delete or change orders. I only read the data and, after you confirm, record notes, chase-ups and reminders. Nothing was changed."),
+    ('price', re.compile(r'\b(revenue|profit|margin|price|prices|pricing|sales|income|turnover|worth|value of)\b', re.I),
+     'This system holds no prices, revenue or profit. Orders have pieces, dates and stages only, so any figure would be invented.'),
+    ('people', re.compile(r'\b(worker|workers|operator|operators|staff|employee|employees|headcount|shift|shifts|overtime)\b', re.I),
+     'No worker names or staffing data are held. Output is recorded per stage per day, not per person.'),
+    ('demand', re.compile(r'\b(demand|forecast|next (month|quarter|year)|season)\b', re.I),
+     'This chat holds no demand forecast. The dashboard forecasts delay risk for orders already placed, not future sales.'),
+]
+
+
+def explain_no_data(message: str) -> dict[str, str]:
+    """What the data cannot answer, and why. Used for out-of-scope questions so the system says so instead of asking an unrelated question."""
+    for topic, pattern, reason in NO_DATA_REASONS:
+        if pattern.search(message):
+            return {'topic': topic, 'reason': reason}
+    return {'topic': 'other', 'reason': 'The data holds orders (customer, product, pieces, dates, stage), daily output per stage and workshop profiles. '
+                                         'It does not hold what you asked about, so I will not guess.'}
+
+
 class DataTools:
     def __init__(self, directory: Path) -> None:
         """场景 1.1–2.2：只读取正式数据目录。"""
         self.directory = directory
+
+    def briefing(self) -> dict[str, Any] | None:
+        """The newest saved morning briefing. The CSV adapter keeps none, so the caller says so; the database adapter overrides this."""
+        return None
 
     def rows(self, source: str) -> list[Evidence]:
         """场景 1.2/2.2：每次重新读取原始记录，保留 CSV 记录行号。"""

@@ -23,6 +23,8 @@ class Intent(StrEnum):
     EXECUTION_CHASE = 'execution.chase'
     EXECUTION_NOTE = 'execution.note'
     EXECUTION_REMINDER = 'execution.reminder'
+    BRIEFING_TODAY = 'briefing.today'
+    DATA_UNAVAILABLE = 'data.unavailable'
     UNKNOWN = 'unknown'
 
 

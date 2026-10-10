@@ -38,7 +38,7 @@ for feasibility. A pass is not proof that the wording is good: read the answers 
 
 First-pass by category: facts 7 of 10, multi-turn 2 of 4, ambiguous 2 of 5, unanswerable 6 of 6, feasibility 6 of 6, actions 2 of 5.
 
-**What the 11 first-pass failures were**, each a real gap and not an unfair question:
+**What the 11 first-pass failures were**, each a real gap and not an unfair question (each one is analysed on its own, with its cause and fix, in [failure_analysis.md](failure_analysis.md)):
 how many orders are in progress (no answer at all); which stage an order is at (the order answer never said); pieces queued at a stage (counts only); two follow-up questions
 about "it" (due date, customer); "Is it late?" and "What about the other one?" with nothing to refer to (listed orders instead of asking); "the Harbor Knits order" when there are 5
 (summarised instead of asking); setting a watch did not say in words that it needs confirming (matters for voice); "Email the customer..." was not understood; and "Delete ORD-005",

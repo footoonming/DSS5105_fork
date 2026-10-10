@@ -4,13 +4,13 @@ import json
 import re
 from contextlib import nullcontext
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Literal, Protocol
 
 from .schemas import (ChatRequest, ChatResponse, Classification, DialogState, Evidence,
                       Intent, PendingAction, PendingClarification, Slots, ToolCall)
 from .workflow_store import Sender, WorkflowStore
-from .workflow_tools import DataTools, resolve_date, resolve_datetime
+from .workflow_tools import DataTools, explain_no_data, resolve_date, resolve_datetime
 
 
 class Classifier(Protocol):
@@ -107,6 +107,10 @@ class WorkflowEngine:
         state.pending_clarification = None
         calls: list[ToolCall] = []
         evidence: list[Evidence] = []
+        if result.confidence >= 0.65 and intent == Intent.DATA_UNAVAILABLE:
+            return self.refuse(message, result, state, now, calls, evidence)
+        if result.confidence >= 0.65 and intent == Intent.BRIEFING_TODAY:
+            return self.briefing(result, state, now, calls, evidence)
         if state.comparison_orders and not explicit_ids and intent not in (Intent.ORDER_COMPARE, Intent.ORDER_COMMITMENT, Intent.ORDER_PRIORITIZE, Intent.OPERATIONS_NORMALITY, Intent.OPERATIONS_DEVIATION):
             return self.ask('Which order do you mean: ' + ', '.join(state.comparison_orders) + '?', state, result, now, calls, evidence)
         if result.confidence < 0.65 or intent == Intent.UNKNOWN:
@@ -217,6 +221,38 @@ class WorkflowEngine:
             else:
                 return self.execution(message, result, state, now, calls, evidence, order, previous_slots)
         return self.response(state, result, now, answer, calls, evidence)
+
+    def refuse(self, message: str, result: Classification, state: DialogState, now: datetime,
+               calls: list[ToolCall], evidence: list[Evidence]) -> ChatResponse:
+        """Tool explain_no_data: say what the data does not hold. The wording comes from the user's own words, not from the model."""
+        refusal = explain_no_data(message)
+        calls.append(ToolCall(name='explain_no_data', arguments={'topic': refusal['topic']}, result=refusal))
+        return self.response(state, result, now, refusal['reason'], calls, evidence)
+
+    def briefing(self, result: Classification, state: DialogState, now: datetime,
+                 calls: list[ToolCall], evidence: list[Evidence]) -> ChatResponse:
+        """Tool get_briefing (discovery): the saved 07:00 briefing, three lines first. Nothing here is computed by the model."""
+        saved = self.tools.briefing()
+        calls.append(ToolCall(name='get_briefing', arguments={}, result=saved or {'status': 'none_saved'}))
+        if saved is None:
+            return self.response(state, result, now, 'No morning briefing has been saved yet. One is saved automatically each morning at 07:00; '
+                                 'until then, ask about a specific order or stage.', calls, evidence)
+        lines = [f"Morning briefing for {saved['business_date']} (saved {saved['generated_at'][:16].replace('T', ' ')}):",
+                 f"Yesterday: {saved['yesterday']}", f"Top issue: {saved['top_issue']}", f"Decide today: {saved['decide']}"]
+        if saved.get('production_note'):
+            lines.append(f"Production: {saved['production_note']}")
+        health = saved.get('health') or {}
+        if health:
+            lines.append('Orders in progress: ' + ', '.join(f'{health[k]} {k.replace("_", " ")}' for k in ('late', 'at_risk', 'on_track') if k in health) + '.')
+        evidence.extend(e for e in self.tools.rows('production_log.csv')
+                        if e.record['date'] == (date.fromisoformat(saved['business_date']) - timedelta(days=1)).isoformat())
+        match = re.search(r'\bORD-\d{3}\b', saved.get('top_issue') or '')
+        if match:   # so that "why is that flagged?" next has an order to talk about
+            try:
+                self.select(match[0], state, calls, evidence)
+            except ValueError:
+                pass
+        return self.response(state, result, now, '\n'.join(lines), calls, evidence)
 
     def select(self, order_id: str, state: DialogState, calls: list[ToolCall], evidence: list[Evidence]) -> Evidence:
         """场景 1.1/1.2：唯一识别后刷新字段，保存 active_order 和客户。"""

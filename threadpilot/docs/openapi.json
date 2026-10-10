@@ -1751,6 +1751,8 @@
           "execution.chase",
           "execution.note",
           "execution.reminder",
+          "briefing.today",
+          "data.unavailable",
           "unknown"
         ],
         "title": "Intent"

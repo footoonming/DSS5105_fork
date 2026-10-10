@@ -125,16 +125,27 @@ const T = {
       return {order: o, queue: cur().pipeline.find(p => p.stage === o.stage), findings: cur().findings.filter(f => (f.order_ids || []).includes(o.order_id))}; }},
   get_customer: {...spec("Retrieval", "A customer's orders by status and on-time delivery over 60 days.", "Compare customers by revenue; no prices are held.", "Returns null for an unknown customer."),
     run: a => cur().customers.find(c => c.customer === a.customer) || null},
-  get_stage_output: {...spec("Judgement", "Is a stage's (or the whole factory's) output normal on a given day? Normal is the average of the previous 8 same weekdays, with a band.", "Explain why output changed; the production log records pieces, not causes.", "Says so when there is not enough history, or the date is outside the 18 working days kept."),
+  list_customers: {...spec("Retrieval", "Which customers have late, at-risk or stalled orders this morning, with their counts.", "Rank customers by revenue or value; no prices are held. Finding a customer whose orders have all stopped is list_findings' job.", "Says no customer is affected when none is."),
+    run: () => cur().customers},
+  get_stage_output: {...spec("Judgement", "Is a stage's (or the whole factory's) output normal on a given day? Normal is the average of the previous 8 same weekdays, with a band. If the manager gives a number (\"is 800 from assembly normal?\"), that number is judged against the band and flagged as not checked.", "Explain why output changed; the production log records pieces, not causes.", "Says so when there is not enough history, or the date is outside the 18 working days kept."),
     run: a => { const b = cur(), st = b.stages[a.stage];
-      if (!a.date || a.date === b.covers) return {...st.yesterday, date: b.covers, stage: a.stage, evidence: st.yesterday.evidence};
-      const h = st.history.find(x => x.date === a.date);
-      if (!h) return {error: `I keep 18 working days of history in this view and ${day(a.date)} is not one of them (or the factory was closed).`};
-      if (h.value == null || h.low == null) return {error: `There is not enough history to judge ${day(a.date)}.`};
-      const pct = Math.round(1000 * (h.value - h.mean) / h.mean) / 10;
-      return {date: a.date, stage: a.stage, observed: h.value, mean: h.mean, low: h.low, high: h.high, pct_vs_mean: pct, samples: 8,
-              status: h.value < h.low ? "below" : h.value > h.high ? "above" : "normal",
-              evidence: [{file: "production_log.csv", row: h.row, values: {date: a.date, stage: a.stage, pieces_completed: h.value}}]}; }},
+      let r;
+      if (!a.date || a.date === b.covers) r = {...st.yesterday, date: b.covers, stage: a.stage, evidence: st.yesterday.evidence};
+      else {
+        const h = st.history.find(x => x.date === a.date);
+        if (!h) return {error: `I keep 18 working days of history in this view and ${day(a.date)} is not one of them (or the factory was closed).`};
+        if (h.value == null || h.low == null) return {error: `There is not enough history to judge ${day(a.date)}.`};
+        const pct = Math.round(1000 * (h.value - h.mean) / h.mean) / 10;
+        r = {date: a.date, stage: a.stage, observed: h.value, mean: h.mean, low: h.low, high: h.high, pct_vs_mean: pct, samples: 8,
+             status: h.value < h.low ? "below" : h.value > h.high ? "above" : "normal",
+             evidence: [{file: "production_log.csv", row: h.row, values: {date: a.date, stage: a.stage, pieces_completed: h.value}}]};
+      }
+      if (a.observed == null) return r;
+      if (r.low == null || r.mean == null) return {error: `There is not enough history to judge ${day(r.date)}.`};
+      // the manager's own number, judged against the same band; the recorded figure is kept so the reply can show both
+      return {...r, recorded: r.observed, observed: a.observed, user_observed: true,
+              pct_vs_mean: Math.round(1000 * (a.observed - r.mean) / r.mean) / 10,
+              status: a.observed < r.low ? "below" : a.observed > r.high ? "above" : "normal"}; }},
   get_pipeline: {...spec("Retrieval", "Where the work is sitting: orders, pieces and days of work queued at each stage.", "Predict how the queue will change.", "Days of work is blank for a stage with too little history."),
     run: () => cur().pipeline},
   get_on_time: {...spec("Retrieval", "Share of orders finished in the last 30 days that were on time, versus the 30 days before.", "Break down by customer here (the customer table does that for 60 days).", "Percentage is blank when no orders finished in the window."),
@@ -272,11 +283,21 @@ function customerAnswer(c, call) {
   return R("customer", lines, {detail: orderRows(xs), sources: [...new Set(xs.map(o => `orders.csv line ${o.row} (${o.order_id})`))],
     chips: [chip(`Why is ${worst.order_id} ${worst.status === "late" ? "late" : "flagged"}?`), chip(`Chase ${worst.order_id}`)]});
 }
-function customersAnswer() {
-  const cs = cur().customers.filter(c => c.late || c.at_risk || c.stalled).slice(0, 3);
+function customersAnswer(ql, call) {
+  /* "which customer is stalled?" is a discovery question: a customer whose orders have all stopped is a finding, not a list of idle orders */
+  if (/\b(stalled|stuck|not moving|stopped|gone quiet|quiet)\b/.test(ql)) {
+    const fs = call("list_findings", {}), hits = fs.map((f, i) => [f, i + 1]).filter(([f]) => String(f.key).startsWith("customer_stalled:"));
+    if (!hits.length) return R("customers", ["No customer has all of its orders stalled this morning."], {sources: ["orders.csv, in-progress rows grouped by customer"],
+      chips: [chip("Which orders are idle?", "Which orders are stuck?")]});
+    if (hits.length === 1) return findingAnswer(hits[0][1], call);
+    return R("customers", [`${pl(hits.length, "customer")} ha${hits.length === 1 ? "s" : "ve"} every order stalled:`, ...hits.map(([f]) => `${f.title}.`)], {
+      detail: tbl(["Customer", "Why it ranks here"], hits.map(([f]) => [esc(f.title), esc(f.rank_reason)])), chips: hits.slice(0, 2).map(([, k]) => chip(`Finding ${k}`, `Tell me more about finding ${k}`))});
+  }
+  const all = call("list_customers", {}), byLate = /\b(late|overdue|most|worst)\b/.test(ql);
+  const cs = all.filter(c => c.late || c.at_risk || c.stalled).sort((p, q) => byLate ? (q.late - p.late) || (q.at_risk - p.at_risk) : 0).slice(0, 3);
   if (!cs.length) return R("customers", ["No customer has late or at-risk orders this morning."]);
   return R("customers", [`${pl(cs.length, "customer")} most affected this morning:`, ...cs.map(c => `${c.customer}: ${c.late} late, ${c.at_risk} at risk${c.stalled ? ", all orders stalled" : ""}.`)], {
-    detail: tbl(["Customer", "Active", "Late", "At risk", "On time, 60 days"], cur().customers.map(c => [esc(c.customer), c.active, c.late, c.at_risk, c.otd_60d == null ? "–" : c.otd_60d + "%"])),
+    detail: tbl(["Customer", "Active", "Late", "At risk", "On time, 60 days"], all.map(c => [esc(c.customer), c.active, c.late, c.at_risk, c.otd_60d == null ? "–" : c.otd_60d + "%"])),
     sources: ["orders.csv, in-progress rows grouped by customer"], chips: cs.slice(0, 2).map(c => chip(`How is ${c.customer} doing?`))});
 }
 function listAnswer(intent, label, xs, sourcesNote) {
@@ -286,15 +307,20 @@ function listAnswer(intent, label, xs, sourcesNote) {
     detail: orderRows(xs), sources: [...new Set(xs.map(o => `orders.csv line ${o.row} (${o.order_id})`))].slice(0, 15),
     chips: [chip(`Why is ${xs[0].order_id} ${xs[0].status === "late" ? "late" : "flagged"}?`), chip(`Chase ${xs[0].order_id}`)]});
 }
-function stageAnswer(stage, ql, call, why) {
-  const date = parseDate(ql, today(), "past"), r = call("get_stage_output", {stage, date: date && date !== cur().covers ? date : null});
+function stageAnswer(stage, ql, call, why, observed) {
+  const date = parseDate(ql, today(), "past"), r = call("get_stage_output", {stage, date: date && date !== cur().covers ? date : null, observed: observed ?? null});
   if (r.error) return R("stage_output", [r.error]);
   const name = stage === "TOTAL" ? "The factory" : cap(stage); ctx.lastStage = stage === "TOTAL" ? null : stage;
-  const l1 = r.status === "normal" ? `${name} made ${n(r.observed)} pieces on ${day(r.date)}, within its usual range of ${n(Math.round(r.low))} to ${n(Math.round(r.high))}.`
+  let l1;
+  if (r.user_observed) {      // the manager's number, not the log's: judged against the same band, and said to be unchecked
+    l1 = r.status === "normal" ? `${n(r.observed)} pieces from ${name.toLowerCase()} would be normal: the usual range is ${n(Math.round(r.low))} to ${n(Math.round(r.high))}.`
+      : `${n(r.observed)} pieces from ${name.toLowerCase()} would be ${Math.abs(r.pct_vs_mean)}% ${r.status} its usual ${n(Math.round(r.mean))} (usual range ${n(Math.round(r.low))} to ${n(Math.round(r.high))}).`;
+  } else l1 = r.status === "normal" ? `${name} made ${n(r.observed)} pieces on ${day(r.date)}, within its usual range of ${n(Math.round(r.low))} to ${n(Math.round(r.high))}.`
     : `${name} made ${n(r.observed)} pieces on ${day(r.date)}: ${Math.abs(r.pct_vs_mean)}% ${r.status} its usual ${n(Math.round(r.mean))}.`;
   const lines = [l1];
-  lines.push(why ? "The production log records output, not causes, so I cannot say why." : `Usual is the average of the previous ${r.samples} same weekdays; Sundays are closed.`);
-  if (r.status === "below" && stage !== "TOTAL" && ST.indexOf(stage) > 0 && r.date === cur().covers) {
+  lines.push(r.user_observed ? `That is the number you gave me and I have not checked it; the log shows ${n(r.recorded)} on ${day(r.date)}. Usual is the average of the previous ${r.samples} same weekdays; Sundays are closed.`
+    : why ? "The production log records output, not causes, so I cannot say why." : `Usual is the average of the previous ${r.samples} same weekdays; Sundays are closed.`);
+  if (r.status === "below" && !r.user_observed && stage !== "TOTAL" && ST.indexOf(stage) > 0 && r.date === cur().covers) {
     const up = ST[ST.indexOf(stage) - 1];
     if (cur().stages[up].yesterday.status === "below") lines.push(`${cap(up)}, upstream, was also below usual, so this stage may be short of work.`);
   }
@@ -303,7 +329,7 @@ function stageAnswer(stage, ql, call, why) {
     detail = tbl(["Stage", "Pieces", "Usual", "Source"], ST.map(s => { const y = cur().stages[s].yesterday, e = y.evidence[0];
       return [esc(cap(s)), n(y.observed), n(Math.round(y.mean)), `production_log.csv line ${e.row}`]; }));
   } else {
-    detail = tbl(["Source", "Date", "Pieces", "Role"], r.evidence.map((e, i) => [`${esc(e.file)} line ${e.row}`, esc(day(e.values.date)), n(e.values.pieces_completed), i === 0 ? "the day asked about" : "usual baseline"]));
+    detail = tbl(["Source", "Date", "Pieces", "Role"], r.evidence.map((e, i) => [`${esc(e.file)} line ${e.row}`, esc(day(e.values.date)), n(e.values.pieces_completed), i === 0 ? (r.user_observed ? "recorded that day (not your number)" : "the day asked about") : "usual baseline"]));
   }
   const srcs = stage === "TOTAL" ? ST.map(s => `production_log.csv line ${cur().stages[s].yesterday.evidence[0].row} (${cap(s)})`) : r.evidence.map(e => `${e.file} line ${e.row}`);
   return R("stage_output", lines, {detail, sources: srcs, chips: stage === "TOTAL" ? [chip("Where is the bottleneck?")] : [chip(`Which orders are waiting at ${cap(stage)}?`)]});
@@ -603,6 +629,10 @@ function route(text, ql, call) {
     return R("clarify_order", ["Why what? Name an order (for example ORD-120) or a stage."], {asks: true, chips: cur().findings.slice(0, 3).map((f, i) => chip(`Finding ${i + 1}: ${trunc(f.title, 36)}`, `Tell me more about finding ${i + 1}`))});
   }
   if (stageFollow) return stageAnswer(ctx.lastStage, ql, call, false);
+  /* "Is 800 pieces from assembly normal?": the manager supplies the number, so that number is judged (and flagged as unchecked),
+     not yesterday's record. Needs a stage, a number that counts pieces, and a word that asks for a judgement. */
+  { const obs = !tid && stage && /\b(normal|usual|typical|expected|reasonable|ok|okay|fine|unusual|abnormal|healthy|low|high|enough)\b/.test(ql) ? parsePieces(ql) : null;
+    if (obs != null) return stageAnswer(stage, ql, call, false, obs); }
   if (factTid && !stage) { const f = orderFact(factTid, ql, call); if (f) return f; }
   if (ids.length > 1) { const rs = ids.slice(0, 3).map(id => orderAnswer(id, call)); const r = rs[0]; r.lines = rs.map(x => x.lines[0]); r.detail = orderRows(ids.map(id => cur().orders.find(o => o.order_id === id)).filter(Boolean)); r.sources = rs.flatMap(x => x.sources); return r; }
   if (ids.length === 1) return orderAnswer(ids[0], call);
@@ -616,7 +646,7 @@ function route(text, ql, call) {
     ctx.pending = {type: "order", then: "status"};
     return R("clarify_order", ["Which order do you mean? Name one (for example ORD-120) or a customer."], {asks: true, chips: cur().orders.filter(o => o.status === "late").slice(0, 4).map(o => chip(`${o.order_id} · ${o.customer}`, o.order_id))});
   }
-  if (/\bcustomers\b/.test(ql) && /\b(late|worst|risk|stalled|problem|behind|trouble|affected)\b/.test(ql)) return customersAnswer();
+  if (/\bcustomers?\b/.test(ql) && /\b(late|worst|risk|stalled|stuck|problem|behind|trouble|affected|most)\b/.test(ql)) return customersAnswer(ql, call);
   if (/\btargets?\b/.test(ql)) return targetAnswer(call);
   if (/\bforecast\b|\bexpect(?:ed)?\b.*\borders?\b|\borders?\b.*\bexpect(?:ed)?\b|\bincoming orders?\b|orders? (?:coming|arriving)|\borders?\b.*\b(?:next|coming) (?:two weeks|2 weeks|fortnight|week)\b|\bhow many orders\b.*\b(?:next|coming|expect)/.test(ql)) return forecastAnswer(call);
   { const lv = ql.match(/\b(high|medium|low)[- ]risk\b/); if (lv) return riskAnswer(lv[1], call);
@@ -640,6 +670,9 @@ function route(text, ql, call) {
   if (/\b(stuck|stalled|quiet|not moved|hasn'?t moved|idle|not moving|gone quiet)\b/.test(ql)) {
     const xs = call("list_orders", {idleMin: 5, sort: "idle"}), r = listAnswer("idle_orders", "idle for 5+ working days", xs);
     if (xs.length) r.lines[1] = "Idle is not always a problem: orders waiting their turn behind earlier-due work are not flagged in the briefing."; return r;
+  }
+  if (/\b(?:show|list|give|see|display)\b.*\b(?:all|every)\b.*\borders?\b|^(?:all|every) (?:the |my )?(?:open |active |current |in[- ]progress )?orders\b/.test(ql)) {
+    const xs = call("list_orders", {sort: "due"}); return listAnswer("all_orders", "in progress", xs);
   }
   if (/\bneeds? (?:my )?attention|top (?:issues|problems|risks)|worr(?:y|ied)|biggest (?:risk|problem|issue)|priorit|what should i (?:do|look)/.test(ql)) return attentionAnswer(call);
   if (/\byesterday|what happened|go wrong|gone wrong|summary|briefing|overview|how are we|how'?s the factory|any(?:thing)? (?:problems|issues|news)|anything|status|this morning|today\b/.test(ql)) return summaryAnswer(call);

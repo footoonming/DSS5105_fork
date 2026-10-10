@@ -362,3 +362,58 @@ def test_everyday_words_do_not_trigger_refusals(page):
 def test_pieces_come_from_the_number_that_counts_pieces(page):
     r, = ask(page, 8, "Can we take 2 orders of 400 hoodies by Friday?")
     assert r["intent"] == "feasibility" and r["tools"][0]["args"]["pieces"] == 400
+
+
+# ---------- boundaries between tools (found by probing; see docs/tool_boundaries.md) ----------
+@pytest.mark.parametrize("stage,number", [("assembly", 800), ("packing", 800), ("washing", 300)])
+def test_the_managers_own_number_is_judged_not_yesterdays_record(page, B, stage, number):
+    """The brief's own example: "Is 800 pieces from assembly normal?" has to be about the 800, not about what the log recorded."""
+    r, = ask(page, 8, f"Is {number} pieces from {stage} normal?")
+    y = B[8]["stages"][stage.upper()]["yesterday"]
+    expected = "below" if number < y["low"] else "above" if number > y["high"] else "normal"
+    assert r["intent"] == "stage_output" and r["tools"][0]["name"] == "get_stage_output"
+    assert r["tools"][0]["args"]["observed"] == number                              # the number reached the tool, not the model's arithmetic
+    t = text(r)
+    assert f"{number:,} pieces from {stage}" in t
+    assert ("would be normal" in t) if expected == "normal" else (f"% {expected} its usual" in t)
+    assert "I have not checked it" in t and f"{y['observed']:,}" in t               # flagged as unverified; the recorded figure is still shown
+    assert f"{round(y['low']):,}" in t and f"{round(y['high']):,}" in t
+
+
+def test_a_question_without_a_number_still_reports_the_record(page, B):
+    r, = ask(page, 8, "Is packing normal?")
+    y = B[8]["stages"]["PACKING"]["yesterday"]
+    assert f"{y['observed']:,}" in text(r) and "not checked" not in text(r) and r["tools"][0]["args"]["observed"] is None
+
+
+def test_an_order_number_is_not_mistaken_for_an_output_figure(page):
+    r, = ask(page, 8, "Is ORD-120 normal for packing?")
+    assert all(t["args"].get("observed") is None for t in r["tools"] if t["name"] == "get_stage_output")
+
+
+def test_which_customer_is_stalled_is_a_discovery_question(page, B):
+    r, = ask(page, 8, "Which customer is stalled?")
+    f = next(f for f in B[8]["findings"] if f["key"].startswith("customer_stalled:"))
+    assert r["intent"] == "finding" and f["title"] in text(r)
+    assert {t["name"] for t in r["tools"]} == {"list_findings"}                      # not list_orders: an idle-order list is a different question
+
+
+def test_which_customer_has_the_most_late_orders_ranks_customers(page, B):
+    r, = ask(page, 8, "Which customer has the most late orders?")
+    cs = sorted((c for c in B[8]["customers"] if c["late"] or c["at_risk"] or c["stalled"]), key=lambda c: (-c["late"], -c["at_risk"]))
+    assert r["intent"] == "customers" and {t["name"] for t in r["tools"]} == {"list_customers"}
+    first = text(r).split(":", 1)[1]                                                  # the line after "3 customers most affected this morning:"
+    assert first.strip().startswith(f"{cs[0]['customer']}: {cs[0]['late']} late")    # most late orders first, as asked
+
+
+def test_show_all_orders_lists_every_order_in_progress(page, B):
+    sc = B[8]["status_counts"]
+    for q in ("Show me all orders", "List all orders"):
+        r, = ask(page, 8, q)
+        assert r["intent"] == "all_orders" and plural(sc["late"] + sc["at_risk"] + sc["on_track"], "order") in text(r)
+        assert r["detail"] and "orders.csv line" in r["detail"]
+
+
+def test_all_late_orders_is_still_the_late_list_not_all_orders(page):
+    r, = ask(page, 8, "Show me all late orders")
+    assert r["intent"] == "late_orders"
