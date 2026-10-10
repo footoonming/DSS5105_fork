@@ -8,4 +8,5 @@ threadpilot/frontend/briefing/**  text eol=lf
 # Binary files
 *.png  binary
 *.xlsx binary
+*.pptx binary
 *.pkl  binary

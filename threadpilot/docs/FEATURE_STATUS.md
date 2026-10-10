@@ -25,6 +25,7 @@ Status key: **Done** (built and tested), **Built, with caveats** (works; read th
 | 1 | Upload everything to the shared GitHub repository | Done | Update with the files in this change set. |
 | **Presentation** | | | |
 | 1 | "Brainstorm prompts to int..." (the line is cut off) | Draft below | If it meant prompts to *introduce* the co-pilot in the video, use the list below. |
+| 2 | Sprint 1 slides (5 minutes) | Built, with caveats | [presentation/](presentation/): 6 slides with timed speaker notes and a source for every number. Group number, the sixth member and the Sprint 2 and 3 plan are marked **ADD:** because the repository does not hold them. |
 
 ## Draft: prompts for the 5-minute video
 
@@ -55,4 +56,5 @@ Be ready for these three questions:
 | Evaluation set of 30+ questions with 5+ ambiguous or unanswerable and 5+ feasibility or action | Done: 36 questions, plus 21 held out. **Backend (live model) accuracy not yet measured** | [evaluation.md](evaluation.md) |
 | One inspectable definition of "normal" | Done, and checked by a test across backend, briefing and dashboard | [tool_spec.md](tool_spec.md), definitions |
 | Reproducible set-up for lecturers | Done for Docker and the offline demo; CI runs the tests | [README.md](../../README.md) |
-| 5-minute video and live presentation | Not code: script in the section above | |
+| 5-minute live presentation | Slides done, with **ADD:** gaps (see the checklist in the folder) | [presentation/](presentation/) |
+| 5-minute video | Not recorded yet; the prompts above are its script | |

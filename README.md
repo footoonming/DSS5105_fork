@@ -435,6 +435,7 @@ public, set a monthly OpenAI spending limit, keep secrets only in the server's `
 |---|---|
 | Team workflow, branches, pull requests | [CONTRIBUTING.md](threadpilot/CONTRIBUTING.md) |
 | Status of every sprint item | [FEATURE_STATUS.md](threadpilot/docs/FEATURE_STATUS.md) |
+| Sprint 1 slides, the source of every number on them, and what is still missing | [presentation/](threadpilot/docs/presentation/README.md) |
 | **Tool specification** (every tool: input, output, purpose, non-goals, failure mode) | [tool_spec.md](threadpilot/docs/tool_spec.md) |
 | **Evaluation** (36 + 21 questions, first-pass accuracy, limits) | [evaluation.md](threadpilot/docs/evaluation.md) |
 | Risk, expedite, forecast: method, validation, limits | [prediction_validation.md](threadpilot/docs/prediction_validation.md) |
