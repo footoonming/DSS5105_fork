@@ -86,8 +86,8 @@ def main() -> int:
     questions = load_questions()
     answers, log = ask_all(questions)
     results = score(questions, answers)
-    print(f"Transport retries (rate limit / provider down / timeout, model never answered): {log['transport_retries']}")
     print(markdown(results, "First-pass accuracy" if "--first-pass" in sys.argv else "Accuracy (not first-pass)"))
+    print(f"\nTransport retries (rate limit / provider down / timeout, model never answered): {log['transport_retries']}")
     for r in results:
         if not r["passed"]:
             print(f"\nFAIL {r['id']} [{r['category']}] {r['question']}\n     {r['answer'][:300]}")

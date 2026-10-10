@@ -112,7 +112,7 @@ def test_backend_runner_keeps_multi_turn_questions_in_one_session():
     FakeChat.sessions = {}
     try:
         qs = [q for q in MAIN if q["id"] in ("Q01", "Q11")]
-        answers = run_backend.ask_all(qs, f"http://127.0.0.1:{server.server_address[1]}/chat")
+        answers, log = run_backend.ask_all(qs, f"http://127.0.0.1:{server.server_address[1]}/chat", sleep=lambda s: None)
     finally:
         server.shutdown()
     assert answers["Q01"] == "echo: How many orders are in progress?" and answers["Q11"] == "echo: When is it due?"
@@ -134,7 +134,8 @@ def test_dashboard_chat_still_passes_every_evaluation_question(dashboard_answers
 
 
 def test_backend_runner_labels_the_first_run(capsys, monkeypatch):
-    monkeypatch.setattr(run_backend, "ask_all", lambda qs, url=run_backend.URL: {q["id"]: "I can't say" for q in qs})
+    monkeypatch.setattr(run_backend, "ask_all", lambda qs, url=run_backend.URL: ({q["id"]: "I can't say" for q in qs}, {"transport_retries": 0}))
+    monkeypatch.setattr(run_backend, "preflight", lambda: None)
     for flags, heading in (([], "Accuracy (not first-pass)"), (["--first-pass"], "First-pass accuracy")):
         monkeypatch.setattr("sys.argv", ["run_backend", *flags])
         run_backend.main()
