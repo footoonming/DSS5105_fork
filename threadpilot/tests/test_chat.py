@@ -255,6 +255,14 @@ def test_conditional_reminder_for_a_stage(page, B):
     assert out["state1"] == expect
 
 
+def test_confirmation_notes_do_not_repeat_the_done_label(page):
+    """The card already prints a bold "Done."; the text after it must not start with another one (seen in a screenshot)."""
+    done = page.evaluate("""() => { go(8); ThreadPilotChat.reset(); const out = [];
+        for (const q of ["Tell me if ORD-120 hasn't moved by Friday", "Chase ORD-120", "Add a note to ORD-120: waiting for trims"]) {
+          const r = ThreadPilotChat.respond(q); out.push(ThreadPilotChat.apply(r, {})); } return out; }""")
+    assert len(done) == 3 and all(d and not d.startswith("Done") for d in done), done
+
+
 # ---------- the interface itself ----------
 def test_drawer_roundtrip(page):
     page.evaluate("go(8); ThreadPilotChat.reset()")

@@ -28,7 +28,7 @@ Status key: **Done** (built and tested), **Built, with caveats** (works; read th
 | 1 | Upload everything to the shared GitHub repository | Done | Update with the files in this change set. |
 | **Presentation** | | | |
 | 1 | "Brainstorm prompts to int..." (the line is cut off) | Draft below | If it meant prompts to *introduce* the co-pilot in the video, use the list below. |
-| 2 | Sprint 1 slides (5 minutes) | Built, with caveats | [presentation/](presentation/): 6 slides with timed speaker notes and a source for every number. Group number, the sixth member and the Sprint 2 and 3 plan are marked **ADD:** because the repository does not hold them. |
+| 2 | Sprint 1 slides (5 minutes) | Built, with caveats | [presentation/](presentation/): 7 slides and a backup with real screenshots of the demo, timed speaker notes and a source for every number. Group number, the sixth member and the Sprint 2 and 3 plan are marked **ADD:** because the repository does not hold them. |
 
 ## Draft: prompts for the 5-minute video
 

@@ -135,7 +135,7 @@ answers are deterministic.
 > <sub>confirmation card "Create a standing check" (Condition: ORD-120 has had no activity since Fri, 3 Apr; Checked in: Friday 10 April's 07:00 briefing (data to Thu, 9 Apr)). Worst case: one extra alert in a later briefing. You can remove it from Watches at any time. It is checked once each morning, not continuously. · tools: create_watch</sub>
 
 > **You:** *(presses Confirm)*  
-> **ThreadPilot:** Done. I will raise it in the briefing for Fri, 10 Apr.
+> **ThreadPilot:** I will raise it in the briefing for Fri, 10 Apr.
 
 > *The date moves on to the next morning's briefing.* Watches now: fired: Watch ORD-120 (ORD-120 has not moved since Fri, 3 Apr: 5 working days idle, still at Washing.)
 
@@ -148,7 +148,7 @@ answers are deterministic.
 > <sub>confirmation card "Create a standing check" (Condition: Packing output is still below its usual range; Checked in: Friday 10 April's 07:00 briefing (data to Thu, 9 Apr)). Worst case: one extra alert in a later briefing. You can remove it from Watches at any time. It is checked once each morning, not continuously. · tools: create_watch</sub>
 
 > **You:** *(presses Confirm)*  
-> **ThreadPilot:** Done. I will raise it in the briefing for Fri, 10 Apr.
+> **ThreadPilot:** I will raise it in the briefing for Fri, 10 Apr.
 
 > *The date moves on to the next morning's briefing.* Watches now: cleared: Packing still behind (Packing is back within its usual range (637 pieces), so no reminder is needed.)
 

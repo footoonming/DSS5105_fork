@@ -1248,7 +1248,7 @@ function watchProposal(w, call) {
     kind: "watch", title: w.kind === "plain" ? "Set a reminder" : "Create a standing check", fields: [{label: "Condition", value: cond}, {label: "Checked in", value: when}],
     blast: "Worst case: one extra alert in a later briefing. You can remove it from Watches at any time. It is checked once each morning, not continuously.",
     apply: () => { watches.push({...w, id: ++ui.seq, created_idx: idx, state: "active", result: null}); logAction(w.kind === "plain" ? "Reminder set" : "Watch created", `${cond}; checked ${day(w.trigger)}`);
-      return `Done. I will raise it in the briefing for ${day(w.trigger)}.`; }}});
+      return `I will raise it in the briefing for ${day(w.trigger)}.`; }}});
 }
 function watchRoute(text, ql, call, isRemind) {
   const ids = orderIds(ql), pron = /\b(it|that one|that order|this one)\b/.test(ql);
