@@ -60,7 +60,7 @@ Be ready for these three questions:
 | English README | Done | [README.md](../../README.md) |
 | One-table tool specification (name, input, output, purpose, non-goals, failure mode) | Done: 37 entries (18 live, 19 dashboard); a test checks the live names against the code | [tool_spec.md](tool_spec.md) |
 | Evaluation set of 30+ questions with 5+ ambiguous or unanswerable and 5+ feasibility or action | Done: 36 questions, plus 21 held out. **Backend (live model) accuracy not yet measured** | [evaluation.md](evaluation.md) |
-| 10+ failure cases, each analysed individually | Done: the 11 first-pass failures plus 3 found by probing | [failure_analysis.md](failure_analysis.md) |
+| 10+ failure cases, each analysed individually | Done: the 12 first-pass failures, 3 found by probing and 6 from the bait questions | [failure_analysis.md](failure_analysis.md) |
 | A page of honest reasoning about the boundaries between tools | Done | [tool_boundaries.md](tool_boundaries.md) |
 | One inspectable definition of "normal" | Done, and checked by a test across backend, briefing and dashboard | [tool_spec.md](tool_spec.md), definitions |
 | Reproducible set-up for lecturers | Done for Docker and the offline demo; CI runs the tests | [README.md](../../README.md) |

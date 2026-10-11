@@ -46,8 +46,11 @@ function parseDate(ql, ref, dir) {          // dir: "future" for deadlines, "pas
   if ((m = ql.match(/\bin (\d+) (day|days|week|weeks)\b/))) return plus(ref, +m[1] * (m[2][0] === "w" ? 7 : 1));
   if (/\bnext week\b/.test(ql)) return plus(ref, 7);
   const r = D(ref), y = r.getUTCFullYear();
+  /* A named date up to 60 days back is that past date (so "by 20 March" on 1 April is "already passed"), not next year's.
+     Found by evaluation/provenance.py: the chat used to read it as 20 March 2027 and give an estimate. */
   const fix = (mo, dd) => { let c = mk(y, mo, dd); if (!c) return null;
-    if (dir === "future" && c < ref) c = mk(y + 1, mo, dd); if (dir === "past" && c > ref) c = mk(y - 1, mo, dd); return c; };
+    if (dir === "future" && c < ref && (D(ref) - D(c)) / 864e5 > 60) c = mk(y + 1, mo, dd);
+    if (dir === "past" && c > ref) c = mk(y - 1, mo, dd); return c; };
   if ((m = ql.match(new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?" + MONRE + "\\b")))) return fix(MON.indexOf(m[2]), +m[1]);
   if ((m = ql.match(new RegExp("\\b" + MONRE + "\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b")))) return fix(MON.indexOf(m[1]), +m[2]);
   if ((m = ql.match(/\b(\d{1,2})(?:st|nd|rd|th)\b/)) || (m = ql.match(/\b(?:by|on|before)\s+(?:the\s+)?(\d{1,2})\b/))) {
@@ -522,6 +525,22 @@ function evaluateWatches() {
 const NO_PRICE = /\b(price|prices|pricing|revenue|profit|margin|sales|income|turnover|earn|earnings|money|invoice|paid|payment|budget)\b|how much (?:does|do|did|is|are).*\b(cost|sell|make)\b/;
 const NO_PEOPLE = /\b(worker|workers|employee|employees|operator|operators|staff|headcount|salary|wages?|who (?:is|was|are|were) (?:working|on shift)|who works|overtime hours)\b/;
 const NO_FORECAST = /\b(next month|next quarter|next year|demand|trend of orders)\b/;
+/* Questions about something the data does not record. Found by the bait questions (evaluation/bait_questions.json): each of these
+   used to be answered as a neighbouring question (an order's status, the morning summary) without saying the thing asked for is
+   not held. Order matters; the first match wins. */
+const NOT_HELD = [
+  [/\b(colou?rs?|sizes?|yarns?|materials?|fabrics?|designs?|styles?)\b/, "Orders record the product type, pieces, dates and stage. Colour, size, yarn and material are not recorded, so I can't say."],
+  [/\b(defects?|defect rate|quality|rejects?|rework)\b.*\b(ord[-\s]?\d+|orders?)\b|\b(ord[-\s]?\d+|orders?)\b.*\b(defects?|defect rate|quality|rejects?)\b/, "Defect rates are recorded per outside workshop, not per order, and this view does not load them, so I can't give one for an order."],
+  [/\b(who|whom|name)\b.*\b(planners?|supervisors?|managers?|responsible|in charge|account manager)\b|\b(planner|supervisor)'?s name\b/, "I can't name anyone: orders record no planner, supervisor or account-manager names. I can draft a chase-up to the production planner role."],
+  [/\b(did|has|have|was|were)\b.*\bcancel|\bcancel(?:l?ed|lations?)\b/, "The data records orders as in progress or complete. It has no record of cancelled orders, so I can't say which were cancelled."],
+  [/\b(weather|temperature|raining|rain|forecast for (?:the )?weather|news|stock price|share price|exchange rate)\b/, "This system holds factory data only: orders, daily output per stage and workshop profiles. It has nothing on that, so I will not guess."],
+];
+function impossibleDate(ql) {
+  const m = ql.match(new RegExp("\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?" + MONRE + "\\b")) || ql.match(new RegExp("\\b" + MONRE + "\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b"));
+  if (!m) return null;
+  const [dd, mon] = /^\d/.test(m[1]) ? [+m[1], m[2]] : [+m[2], m[1]];
+  return mk(D(today()).getUTCFullYear(), MON.indexOf(mon), dd) ? null : `${dd} ${cap(mon)}`;
+}
 function refusalRoute(ql, call) {
   let why = null, second = "I would rather say so than give you a made-up number.", alt = [chip("Did anything go wrong yesterday?"), chip("Where is the bottleneck?")];
   if (NO_PRICE.test(ql)) why = "This system holds no prices, revenue or profit. Orders have pieces, dates and stages only, so any figure would be invented.";
@@ -532,6 +551,7 @@ function refusalRoute(ql, call) {
     why = "I can't cancel, delete or change orders. I only read the data and, after you confirm, log notes, chase-ups and watches.";
     second = "Nothing was changed. Use the Memos card to record an amended date, and ask the production planner to change the order itself.";
   }
+  if (!why) { const hit = NOT_HELD.find(([re]) => re.test(ql)); if (hit) { why = hit[1]; second = "Ask me about the order's status, stage or due date instead."; } }
   if (!why) return null;
   call("explain_no_data", {topic: why.slice(0, 20)});
   return R("no_data", [why, second], {refused: true, chips: alt});
@@ -580,6 +600,8 @@ function route(text, ql, call) {
     const l = ctx.last;
     return l && l.detail ? Object.assign(R("detail", ["Here is the detail."], {detail: l.detail, sources: l.sources}), {openDetail: true}) : R("detail", ["There is no detail to expand yet. Ask me something first."]);
   }
+  const bad = impossibleDate(ql);
+  if (bad) return R("clarify_date", [`There is no ${bad} in the calendar. Which day do you mean?`], {asks: true});
   const ids = orderIds(ql), pron = /\b(it|that one|that order|this order|this one|that|those)\b/.test(ql), tid = ids[0] || (pron ? ctx.lastOrder : null);
   const cust = customerOf(ql), stage = stageOf(ql);
   /* "who is the customer?", "how many pieces?" right after an order answer: the order in focus is meant. Only short questions

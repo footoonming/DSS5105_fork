@@ -143,7 +143,7 @@ and is the reason the dashboard chat, not the live chat, carries the recorded sc
 
 We asked 34 questions, written after reading the routing code, and compared the tool that answered with the tool that should have.
 This is a regression set, not an accuracy measure: the questions were chosen by the author, and the defects below were fixed afterwards,
-so they are not part of the 25 of 36 first-pass figure.
+so they are not part of the 24 of 36 first-pass figure.
 
 | Found | What was wrong | Fixed by |
 | --- | --- | --- |

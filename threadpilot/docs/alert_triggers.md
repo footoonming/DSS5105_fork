@@ -136,5 +136,5 @@ sent by this loop.**
   yet been tuned with a real GM.
 - On the shipped 15 mornings the briefing found 101 findings, showed 74 and counted the other 27 (never more than 5 shown, between
   4 and 9 found each morning). That is a property of this synthetic data, not a measured alert rate for a real factory.
-- Discovery was checked against events planted in the simulator (5 of 5 found, 1 to 5 days after each started;
+- Discovery was checked against events planted in the simulator (5 of 5 found, 1 to 4 days after each started;
   `simulation/evaluate_discovery.py`, results in the README). It has not been checked against events a real factory would not label.

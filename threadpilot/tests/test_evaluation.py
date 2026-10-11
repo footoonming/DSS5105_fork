@@ -78,7 +78,7 @@ def test_numbers_are_matched_as_whole_numbers():
 
 
 def test_saved_results_are_consistent_with_their_answers():
-    for f in (EVAL / "results").glob("*.json"):
+    for f in (EVAL / "results").glob("dashboard_chat_*.json"):
         data = json.loads(f.read_text(encoding="utf-8"))
         assert data["summary"] == summary(rescore(f)), f.name
 
@@ -86,7 +86,7 @@ def test_saved_results_are_consistent_with_their_answers():
 def test_frozen_first_run_numbers_are_the_ones_reported():
     first = json.loads((EVAL / "results" / "dashboard_chat_first_run.json").read_text(encoding="utf-8"))["summary"]
     held = json.loads((EVAL / "results" / "dashboard_chat_heldout.json").read_text(encoding="utf-8"))["summary"]
-    assert (first["passed"], first["total"]) == (25, 36) and (held["passed"], held["total"]) == (18, 21)
+    assert (first["passed"], first["total"]) == (24, 36) and (held["passed"], held["total"]) == (18, 21)
 
 
 class FakeChat(BaseHTTPRequestHandler):

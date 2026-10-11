@@ -284,7 +284,7 @@ How well it holds up, briefly ([full results](threadpilot/docs/prediction_valida
 
 | Check | Result |
 |---|---|
-| Discovery of planted events | 5 of 5 found, 1 to 5 days after each started |
+| Discovery of planted events | 5 of 5 found, 1 to 4 days after each started |
 | Predicted finish dates against the simulation | average error 2.2 working days |
 | Expedite gain predicted against simulated | average error 2.8 working days (one large miss) |
 | Feasibility ranges against injected test orders | real finish inside the range in 14 of 14 cases |
@@ -442,7 +442,7 @@ public, set a monthly OpenAI spending limit, keep secrets only in the server's `
 | What it can do, what it refuses, and the worst case of each action | [actions_and_limits.md](threadpilot/docs/actions_and_limits.md) |
 | Conversation scenarios, recorded from the real chat (multi-turn, vague, unanswerable, actions) | [conversation_scenarios.md](threadpilot/docs/conversation_scenarios.md) |
 | **Evaluation** (36 + 21 questions, first-pass accuracy, limits) | [evaluation.md](threadpilot/docs/evaluation.md) |
-| Failure analysis: the 11 first-pass failures, each with its cause and fix | [failure_analysis.md](threadpilot/docs/failure_analysis.md) |
+| Failure analysis: the 12 first-pass failures and 6 bait-question failures, each with its cause and fix | [failure_analysis.md](threadpilot/docs/failure_analysis.md) |
 | Risk, expedite, forecast: method, validation, limits | [prediction_validation.md](threadpilot/docs/prediction_validation.md) |
 | Dashboard chat: tools, limits, validation | [chat_tools.md](threadpilot/docs/chat_tools.md) |
 | Data pipeline and import rules | [data_pipeline.md](threadpilot/docs/data_pipeline.md) |

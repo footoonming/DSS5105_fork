@@ -31,5 +31,5 @@ def test_the_quoted_question_matches_the_saved_run():
 
 
 def test_the_headline_counts_agree_with_the_saved_run():
-    assert len(RUN["results"]) == 36 and sum(r["passed"] for r in RUN["results"]) == 25 and len(failures()) == 11
-    assert "25 of 36" in DOC and "11 questions" in DOC
+    assert len(RUN["results"]) == 36 and sum(r["passed"] for r in RUN["results"]) == 24 and len(failures()) == 12
+    assert "24 of 36" in DOC and "12 questions" in DOC

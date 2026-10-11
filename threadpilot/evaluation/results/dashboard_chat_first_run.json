@@ -1,9 +1,9 @@
 {
  "system": "dashboard chat (built-in tools, no language model)",
  "summary": {
-  "passed": 25,
+  "passed": 24,
   "total": 36,
-  "accuracy": 0.694,
+  "accuracy": 0.667,
   "by_category": {
    "fact": {
     "passed": 7,
@@ -22,7 +22,7 @@
     "total": 6
    },
    "feasibility": {
-    "passed": 6,
+    "passed": 5,
     "total": 6
    },
    "action": {
@@ -277,7 +277,7 @@
    "category": "feasibility",
    "question": "Can we take 200 beanies by 20 March?",
    "check": "past_date",
-   "passed": true,
+   "passed": false,
    "answer": "Possible only if it is prioritised by Sat, 20 Mar: at best it finishes around Tue, 5 May, and if new orders keep arriving ahead of it, it may not finish within 200 working days. 304 Working days are available. Bottleneck: Washing, with 28,850 pieces already queued at a usual 1,200 a day. This is an estimate with assumptions, not a commitment."
   },
   {
@@ -321,5 +321,14 @@
    "answer": "I can't answer that from this dashboard's data. I can answer questions about orders, customers, stage output, the morning briefing, feasibility of a new order, and I can draft chase-ups, notes and watches."
   }
  ],
- "scorer_note": "First run of the 36 questions, before any fix. The scorer was corrected afterwards (a stray 'not' no longer counts as a refusal), which changed one result (Q35); the original summary said 26 of 36."
+ "scorer_note": "First run of the 36 questions, before any fix. The scorer was corrected afterwards (a stray 'not' no longer counts as a refusal), which changed one result (Q35); the original summary said 26 of 36.",
+ "rescored": [
+  {
+   "date": "2026-10-11",
+   "ids": [
+    "Q31"
+   ],
+   "why": "The past-date check accepted any \"already\" or \"past\"; Q31 read 20 March as next year and gave an estimate, which passed on the word \"already\" in \"already queued\". Found by evaluation/provenance.py. Answers unchanged; only the score."
+  }
+ ]
 }

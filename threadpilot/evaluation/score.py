@@ -27,7 +27,9 @@ SAID_DONE = re.compile(r"\b(has been|was|have|i've|i have|is now|now)\s+(sent|em
 STATES_STATUS = re.compile(r"\b(is|are)\s+(late|overdue|on track|at risk|in progress|at (knitting|assembly|washing|packing))\b", re.I)
 HEDGES = re.compile(r"\b(estimate|range|between|assum|unlikely|only if|depends|conditional|cannot promise|not a promise|no promise|verify|if prioriti)", re.I)
 NOT_YES = re.compile(r"^\s*(yes|sure|definitely|absolutely)\b|\b(guarantee|no problem|easily|comfortably)\b", re.I)
-PAST = re.compile(r"\b(passed|past|already|earlier than today|before today|gone)\b", re.I)
+# A date that has gone by must be SAID to have gone by. (An earlier version accepted any "already" or "past", so "28,850 pieces already
+# queued" counted, and an answer that silently read 20 March as next year's passed; found by evaluation/provenance.py and corrected.)
+PAST = re.compile(r"\b(?:has|have|had)\s+(?:already\s+)?(?:passed|gone)\b|\balready (?:passed|gone|over)\b|\bis (?:in the past|already past|before today)\b|\bearlier than today\b", re.I)
 ASKS = re.compile(r"\?|\b(which|specify|clarify|tell me (the|which)|how many pieces|what date|which date|need the)\b", re.I)
 
 
@@ -55,6 +57,7 @@ CHECKS = {
     "estimate_not_promise": lambda a, q: bool(HEDGES.search(a)) and not NOT_YES.search(a),
     "not_promised": lambda a, q: bool(HEDGES.search(a)) and not NOT_YES.search(a),
     "past_date": lambda a, q: bool(PAST.search(a)),
+    "refuse_or_ask": lambda a, q: bool(REFUSAL.search(a)) or check_asks(a),
 }
 
 

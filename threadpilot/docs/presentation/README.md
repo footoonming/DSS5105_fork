@@ -23,7 +23,7 @@ The Sprint 1 review (Capstone_Project_Spec_v5, "Sprint 1 review") asks for six t
 | 4. Risk assessment (probability, impact, mitigation) | 6 |
 | 5. Key assumptions (validation required, risk level, dependency) | 7 |
 | 6. Sprint 2 development roadmap, including success criteria | 8 |
-| Backup, for Q&A | 9 tool set and its edges, 10 actions need a confirmation, 11 the 11 first-pass failures, 12 an estimate and a watch that fires |
+| Backup, for Q&A | 9 tool set and its edges, 10 actions need a confirmation, 11 the 12 first-pass failures, 12 an estimate and a watch that fires |
 
 Slide 1 is the title. Track 2's "declare your objective" instruction does not apply to Track 1.
 
@@ -43,13 +43,13 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 3 | Discovery also runs at 07:00 without being asked | [alert_triggers.md](../alert_triggers.md), the table at the top |
 | 3 | "Normal" = previous 8 same weekdays plus or minus a band | [tool_spec.md](../tool_spec.md), "Definitions the tools share" |
 | 4 | All 6 active TrendCart orders stopped moving (shared cause, not the queue) | [`briefings/2026-04-09.json`](../../briefings/2026-04-09.json), `headline`; [alert_triggers.md](../alert_triggers.md), `customer_stalled` |
-| 4 | Discovery found 5 of 5 planted events, 1 to 5 days after each started | [README.md](../../../README.md), "Briefing, simulator and predictions" |
+| 4 | Discovery found 5 of 5 planted events, 1 to 4 days after each started (re-run after the 3-sigma + CUSUM change) | [README.md](../../../README.md), "Briefing, simulator and predictions" |
 | 4 | A vague question that asks which of six orders; a refusal (revenue); the washing drop (297 against a usual 733) | [`screens/02`, `04`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S2, S4) |
 | 4 | Nine scenario scripts exposed six follow-ups that lost the thread; fixed and tested | [conversation_scenarios.md](../conversation_scenarios.md), "What recording these found"; `tests/test_chat.py` |
-| 5 | First pass 25 of 36 (69%), held-out 18 of 21 (86%), first-pass by category | [evaluation.md](../evaluation.md), "Results: dashboard chat" |
+| 5 | First pass 24 of 36 (67%; first reported as 25 until a false pass was found), held-out 18 of 21 (86%), first-pass by category; bait questions 10 of 16; 3 of 163 numbers untraced | [evaluation.md](../evaluation.md), "Results: dashboard chat" and "Invented numbers" |
 | 5 | Feasibility ranges contained the real finish in 14 of 14 cases | [prediction_validation.md](../prediction_validation.md), section 3 |
 | 5 | Live backend: 36 of 45 scripted turns passed on the first full batch (7 hit HTTP 429); **not yet run on the 36 questions** | [live_model_verification.md](../live_model_verification.md); [evaluation.md](../evaluation.md), "Results: the live backend" |
-| 6 | Risk 1: first pass 25 of 36 and no answer stated a wrong figure | [failure_analysis.md](../failure_analysis.md), "What the 11 have in common" |
+| 6 | Risk 1: 3 of 163 stated numbers untraced, 1 a real error, fixed | [evaluation.md](../evaluation.md), "Invented numbers" |
 | 6 | Risk 2: 15-minute single-use key, every action logged, the chat cannot cancel, delete or change an order | [tool_spec.md](../tool_spec.md), "How actions stay safe"; [actions_and_limits.md](../actions_and_limits.md) |
 | 6 | Risk 3: one briefing at 07:00; only watches the manager sets and a stage under target 3 days running may interrupt | [alert_triggers.md](../alert_triggers.md) |
 | 6 | Risk 4: synthetic data, the team's own simulator, the team's own questions | [evaluation.md](../evaluation.md), "Limits"; [prediction_validation.md](../prediction_validation.md) |
@@ -57,11 +57,11 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 7 | "Today every question is asked on 1 April 2026"; the forecast is no better than repeating the last period | [failure_analysis.md](../failure_analysis.md), last section; [prediction_validation.md](../prediction_validation.md), section 3 |
 | 7 | The **risk levels** are the drafter's judgement, not measured | See the checklist below |
 | 8 | The briefing still has to reach the team's cloud site (merge and redeploy); the two feasibility methods can disagree | [FEATURE_STATUS.md](../FEATURE_STATUS.md); [tool_boundaries.md](../tool_boundaries.md), "Where our own tools disagree" |
-| 8 | **Success criteria** (live first pass reported as run, 70% on blind questions, no unsourced number, public links, an owner per feature) | **Proposed**, drawn from the repository's own results (69% first pass) and the course's Sprint 2 rule that the GitHub and demo links are public and on the first slide; the team has not agreed them |
+| 8 | **Success criteria** (live first pass reported as run, 70% on blind questions, no unsourced number, public links, an owner per feature) | **Proposed**, drawn from the repository's own results (67% first pass) and the course's Sprint 2 rule that the GitHub and demo links are public and on the first slide; the team has not agreed them |
 | 8 | Sprint 1 Fri 16 Oct, Sprint 2 Fri 30 Oct, Sprint 3 Fri 13 Nov, final zip Sun 15 Nov 2026 | Capstone_Project_Spec_v5 |
 | 9 | 37 tools (18 live, 19 dashboard); 27 boundary questions | [tool_spec.md](../tool_spec.md); [tool_boundaries.md](../tool_boundaries.md) |
 | 10 | Confirmation card with the worst case; chase logged, nothing sent; "Delete ORD-005" refused; 15-minute key | [`screens/06`, `07`](screens/); [actions_and_limits.md](../actions_and_limits.md) |
-| 11 | The 11 first-pass failures, by cause (5, 5, 1) and the three found by probing | [failure_analysis.md](../failure_analysis.md) |
+| 11 | The 12 first-pass failures, by cause (5, 6, 1), the three found by probing and the bait failures | [failure_analysis.md](../failure_analysis.md) |
 | 12 | Feasibility answer (800 hoodies by the 25th: finishes 1 to 8 May, bottleneck Packing) and a watch that fires on 10 April | [`screens/05`, `08`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S5, S7) |
 
 The first-pass and held-out figures are for the **dashboard chat** (built-in tools, no language model). The discovery and feasibility figures
