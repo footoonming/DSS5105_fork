@@ -55,7 +55,7 @@ Every tool that reads data returns the source rows with its answer; every tool t
   **review triggers** (idle 7+ days, due within 7 days) as plain facts about what to look at, not as a second risk rule. The team's Dashboard screen keeps
   its own **priority score** and imported delay model for its task list; that is a separate screen and says so on it.
 * **Feasibility** has two methods. B9 adds each stage's days in series on top of the whole backlog (very cautious). D10 returns a range from the queue and the
-  recent arrival rate, and was checked against the simulator (14 of 14 inside the range). Both state their assumptions; neither promises a date.
+  recent arrival rate, and was checked against the simulator: on 180 test orders the range as first built held the real finish 69% of the time, so it is now widened by 3 working days at each end (94% on held-out futures; `docs/calibration.md`). Both state their assumptions; neither promises a date.
 * **Capacity** in the briefing and D10 is usual output times a workshop factor estimated from completions, because the production log shows only about 59% of what
   ships (`docs/prediction_validation.md`, section 1). B9 uses the 20-day average output from the log, with no factor.
 

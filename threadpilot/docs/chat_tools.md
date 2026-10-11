@@ -55,7 +55,7 @@ Watches panel. Nothing here can delete or change order data.
 ## Validation of the feasibility estimate
 
 Tested against the simulator by injecting a real extra order and recording when it actually finished: 14 cases (five start dates, 400 to 1,500
-pieces, deadlines 16 to 75 days out). **The real finish fell inside the estimated range in 14 of 14 cases.** Verdicts: "unlikely" 5 times (all 5
+pieces, deadlines 16 to 75 days out). **The real finish fell inside the estimated range in 14 of 14 cases.** (A larger test of 180 orders later found 69%, and the range is now widened by 3 working days each end: [calibration.md](calibration.md).) Verdicts: "unlikely" 5 times (all 5
 finished late) and "possible only if prioritised" 9 times (2 finished late, 7 on time). No case produced "likely" or "tight", so **those two verdicts
 are untested**.
 

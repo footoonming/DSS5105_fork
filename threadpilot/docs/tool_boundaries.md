@@ -113,7 +113,7 @@ Boundaries are also the places where the design is not finished. These are real 
   only as "review triggers", labelled as facts about what to look at. The team's Dashboard screen still ranks its task list with its own
   priority score and imported delay model; it is one screen, and its own "How is this calculated?" panel says so.
 - **"Can we take it?" has two methods.** `B9` adds each stage's days in series on top of the whole backlog (very cautious). `D10` returns
-  a range from the queue and the recent arrival rate, and was checked against the team's own simulator (14 of 14 ranges contained the real
+  a range from the queue and the recent arrival rate, and was checked against the team's own simulator (after widening by 3 working days, 94% of ranges contained the real
   finish). The same question can get different dates from the two paths. Both state their assumptions and neither promises a date. This is
   the main disagreement left.
 - **"What should I look at first?" has two orderings.** Findings ranked by score (`list_findings`, both paths) answer "what is unusual";

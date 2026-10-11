@@ -90,6 +90,19 @@ hold, answered as a neighbouring question; the worst reported 31 March's output 
 these are the dashboard chat's answers. On the live backend the words are also assembled by code; the place where a model writes the answer
 is the read-only SQL agent, which is not wired to the chat page and has not been measured.
 
+## Beyond accuracy: is it calibrated, when should it interrupt, what is it worth?
+
+Accuracy on questions is one kind of evidence. Three studies measure the rest, each with a script, saved results and a test that keeps
+its page in step with them:
+
+* [spc_detection.md](spc_detection.md): which rule should let a stage's output interrupt the manager. The old band would have raised
+  about 12 false alarms a month; the briefing now uses 3-sigma + CUSUM (about 2), chosen by measuring six rules against known drops.
+* [calibration.md](calibration.md): risk levels are calibrated (high 96% late, low 4%; AUC 0.98 against 0.67 for a naive rule). The
+  feasibility range held the real finish only 69% of the time, so it is now widened by 3 working days, chosen on half of the simulated
+  futures and tested on the other half (94%).
+* [business_value.md](business_value.md): in a paired simulation, finding disruptions through the briefing rather than by a weekly
+  routine avoided about 30 working days of lateness per two months (95% interval 18 to 43). Not time saved; that needs a real manager.
+
 ## Results: the live backend (OpenAI model + MySQL)
 
 **Not measured yet.** It needs your API key and spends credit (about 40 model calls). On your own computer, from `threadpilot/`,

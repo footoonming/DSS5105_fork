@@ -287,7 +287,10 @@ How well it holds up, briefly ([full results](threadpilot/docs/prediction_valida
 | Discovery of planted events | 5 of 5 found, 1 to 4 days after each started |
 | Predicted finish dates against the simulation | average error 2.2 working days |
 | Expedite gain predicted against simulated | average error 2.8 working days (one large miss) |
-| Feasibility ranges against injected test orders | real finish inside the range in 14 of 14 cases |
+| Risk levels against 7,605 simulated order-mornings | high 96% late, low 4%; AUC 0.98 against 0.67 for a naive rule ([calibration](threadpilot/docs/calibration.md)) |
+| Feasibility ranges against 180 injected test orders | 69% inside as first built; widened by 3 working days, 94% on held-out futures ([calibration](threadpilot/docs/calibration.md)) |
+| Stage alerts: 6 rules on output resampled from the real log | old band about 12 false alarms a month; 3-sigma + CUSUM about 2, catching every 30%+ drop of 3+ days ([SPC study](threadpilot/docs/spc_detection.md)) |
+| Value of finding problems through the briefing (paired simulation) | about 30 working days of lateness avoided per two months, 95% 18 to 43; not time saved ([business value](threadpilot/docs/business_value.md)) |
 | Two-week order forecast | **no better** than repeating the last period on the provided data |
 
 The simulator follows the same scheduling rule as the models, so these checks show internal consistency, not
@@ -444,6 +447,9 @@ public, set a monthly OpenAI spending limit, keep secrets only in the server's `
 | **Evaluation** (36 + 21 questions, first-pass accuracy, limits) | [evaluation.md](threadpilot/docs/evaluation.md) |
 | Failure analysis: the 12 first-pass failures and 6 bait-question failures, each with its cause and fix | [failure_analysis.md](threadpilot/docs/failure_analysis.md) |
 | Risk, expedite, forecast: method, validation, limits | [prediction_validation.md](threadpilot/docs/prediction_validation.md) |
+| **Beyond the brief**: when a stage alert should interrupt (Shewhart 3-sigma, Western Electric, EWMA, CUSUM compared) | [spc_detection.md](threadpilot/docs/spc_detection.md) |
+| **Beyond the brief**: are the risk levels and feasibility ranges calibrated? | [calibration.md](threadpilot/docs/calibration.md) |
+| **Beyond the brief**: what finding problems through the briefing is worth, in a paired simulation | [business_value.md](threadpilot/docs/business_value.md) |
 | Dashboard chat: tools, limits, validation | [chat_tools.md](threadpilot/docs/chat_tools.md) |
 | Data pipeline and import rules | [data_pipeline.md](threadpilot/docs/data_pipeline.md) |
 | Intent workflow and architecture (Chinese) | [workflow_design.md](threadpilot/docs/workflow_design.md), [INTENT_WORKFLOW.md](threadpilot/docs/INTENT_WORKFLOW.md) |

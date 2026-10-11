@@ -5,7 +5,7 @@ Status key: **Done** (built and tested), **Built, with caveats** (works; read th
 | # | Item | Status | Where, and what to know |
 |---|---|---|---|
 | **Prediction** | | | |
-| 1 | Risk in the morning briefing, with a confidence or risk level | Built, with caveats | "At risk" card, risk shown in the order table, chat: "Which orders are high risk?". Model in `simulation/prediction.py`. Nearly all orders are late in this data, so levels spread little; the "working days late" figure ranks them. |
+| 1 | Risk in the morning briefing, with a confidence or risk level | Built, with caveats | "At risk" card, risk shown in the order table, chat: "Which orders are high risk?". Model in `simulation/prediction.py`. Nearly all orders are late in this data, so levels spread little; the "working days late" figure ranks them. Checked on 7,605 simulated order-mornings where levels do spread: high 96% late, low 4%, AUC 0.98 ([calibration.md](calibration.md)). |
 | 2 | Forecast order quantity, product type and customer | Built, with caveats | "Expected orders, next 2 weeks" card. Volume is no better than repeating the last period, and customers are no better than chance on the provided data; the card says so. |
 | **AI co-pilot** | | | |
 | 1 | Chat interface for free-form questions | Done | "Ask ThreadPilot". Built-in tools, not a language model; `?api=` connects a backend. Unusual phrasings fall back to a help message. |
@@ -66,3 +66,12 @@ Be ready for these three questions:
 | Reproducible set-up for lecturers | Done for Docker and the offline demo; CI runs the tests | [README.md](../../README.md) |
 | 5-minute live presentation | Slides done in the course's order, with **ADD:** and **TEAM:** gaps; rename to the group number before uploading by 3:00 PM Fri 16 Oct (see the checklist in the folder) | [presentation/](presentation/) |
 | 5-minute video | Not recorded yet; the prompts above are its script | |
+
+## Beyond the brief
+
+| Study | Result | Where |
+|---|---|---|
+| Which rule should let a stage's output interrupt the manager (SPC: Shewhart 3-sigma, Western Electric, EWMA, CUSUM) | The old 1.5 SD band would interrupt about 12 times a month with nothing wrong; the briefing now uses 3-sigma + CUSUM, about 2 a month | [spc_detection.md](spc_detection.md) |
+| Invented-number rate and bait questions | 3 of 163 numbers untraced on the first run, 1 a real error (fixed); bait questions 10 of 16 first pass | [evaluation.md](evaluation.md) |
+| Calibration of risk levels and feasibility ranges | Risk levels calibrated (AUC 0.98); feasibility range held 69%, now widened by 3 working days (94% held out) | [calibration.md](calibration.md) |
+| What finding problems through the briefing is worth (paired simulation) | About 30 working days of lateness avoided per two months (95% 18 to 43); not time saved | [business_value.md](business_value.md) |

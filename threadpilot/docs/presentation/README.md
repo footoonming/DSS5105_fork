@@ -38,6 +38,7 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 2 | The five timed questions (7:00, 9:40, 11:15, 14:30, 17:00) and "the planner's half hour every morning, plus every 'let me check and call you back'" | Capstone_Project_Tracks_v4, Track 1 (the course's own brief) |
 | 2 | "5 / 5": each of the five questions is answered by a tool in the demo | [conversation_scenarios.md](../conversation_scenarios.md): S1 (7:00), S2 (9:40), S5 (11:15), S6 (14:30), S7 (17:00) |
 | 2 | Time saved is not measured | Nothing in the repository records a real user; see "What the repository cannot supply" below |
+| 2 | In simulation, about 30 working days of lateness avoided per two months (95%: 18 to 43) | [business_value.md](../business_value.md) |
 | 3 | Five tool kinds; the human gate (preview, confirm, log); the model never computes a number or writes a refusal; memory is the order in focus and any pending action | [tool_spec.md](../tool_spec.md); [tool_boundaries.md](../tool_boundaries.md), rules 1 to 4; `backend/app/schemas.py` (`state.active_order`, `state.pending_action`) |
 | 3 | 120 orders, 360 production-log rows, 8 workshops | [`data/`](../../data/): `orders.csv`, `production_log.csv`, `workshops.csv` |
 | 3 | Discovery also runs at 07:00 without being asked | [alert_triggers.md](../alert_triggers.md), the table at the top |
@@ -47,11 +48,10 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 4 | A vague question that asks which of six orders; a refusal (revenue); the washing drop (297 against a usual 733) | [`screens/02`, `04`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S2, S4) |
 | 4 | Nine scenario scripts exposed six follow-ups that lost the thread; fixed and tested | [conversation_scenarios.md](../conversation_scenarios.md), "What recording these found"; `tests/test_chat.py` |
 | 5 | First pass 24 of 36 (67%; first reported as 25 until a false pass was found), held-out 18 of 21 (86%), first-pass by category; bait questions 10 of 16; 3 of 163 numbers untraced | [evaluation.md](../evaluation.md), "Results: dashboard chat" and "Invented numbers" |
-| 5 | Feasibility ranges contained the real finish in 14 of 14 cases | [prediction_validation.md](../prediction_validation.md), section 3 |
 | 5 | Live backend: 36 of 45 scripted turns passed on the first full batch (7 hit HTTP 429); **not yet run on the 36 questions** | [live_model_verification.md](../live_model_verification.md); [evaluation.md](../evaluation.md), "Results: the live backend" |
 | 6 | Risk 1: 3 of 163 stated numbers untraced, 1 a real error, fixed | [evaluation.md](../evaluation.md), "Invented numbers" |
 | 6 | Risk 2: 15-minute single-use key, every action logged, the chat cannot cancel, delete or change an order | [tool_spec.md](../tool_spec.md), "How actions stay safe"; [actions_and_limits.md](../actions_and_limits.md) |
-| 6 | Risk 3: one briefing at 07:00; only watches the manager sets and a stage under target 3 days running may interrupt | [alert_triggers.md](../alert_triggers.md) |
+| 6 | Risk 3: one briefing at 07:00; stage alerts about 2 false alarms a month (3-sigma + CUSUM) against 12 for the old band | [spc_detection.md](../spc_detection.md) |
 | 6 | Risk 4: synthetic data, the team's own simulator, the team's own questions | [evaluation.md](../evaluation.md), "Limits"; [prediction_validation.md](../prediction_validation.md) |
 | 6 | The **probability and impact ratings** are the drafter's judgement, not measured | See the checklist below |
 | 7 | "Today every question is asked on 1 April 2026"; the forecast is no better than repeating the last period | [failure_analysis.md](../failure_analysis.md), last section; [prediction_validation.md](../prediction_validation.md), section 3 |
