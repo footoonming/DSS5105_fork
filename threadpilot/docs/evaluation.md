@@ -109,8 +109,8 @@ its page in step with them:
 with Docker set up as in the README (section B, steps 1 to 4):
 
 ```bash
-echo 'BUSINESS_NOW=2026-04-01T08:00:00+08:00' >> .env     # every question is asked on 1 April 2026
-docker compose up -d --force-recreate backend              # restart the app on that date
+grep BUSINESS_NOW .env          # must print BUSINESS_NOW=2026-04-01T08:00:00+08:00 (the default from .env.example); every question is asked on that date
+docker compose up -d --build    # rebuild after pulling, so the app has the latest code
 python3 -m evaluation.run_backend --first-pass --save backend_first_run
 ```
 
@@ -118,7 +118,7 @@ The runner first sends one "Hello" and stops before grading anything if the serv
 so a set-up mistake cannot use up the first pass. A rate limit (HTTP 429), provider outage (502) or timeout (504) means the model
 never answered: that turn is retried with backoff and the number of retries is printed and saved, not graded. Every other answer,
 including an error the system returns itself, is graded as it is. If the server sets `API_ACCESS_TOKEN`, export the same value as
-`THREADPILOT_TOKEN` first. Afterwards remove the `BUSINESS_NOW` line from `.env`.
+`THREADPILOT_TOKEN` first.
 
 Run it **once** and report that number as first-pass accuracy. Fixing things and re-running gives a different, tuned number. The earlier live verification
 (`docs/live_model_verification.md`) passed 36 of 45 turns on its first full run (80%) and reported 45 after re-running the failures: quote 80%.
