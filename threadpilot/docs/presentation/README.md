@@ -62,7 +62,7 @@ does not have yet is a yellow **ADD:** or **TEAM:** tag on the slide, never a gu
 | 9 | 37 tools (18 live, 19 dashboard); 27 boundary questions | [tool_spec.md](../tool_spec.md); [tool_boundaries.md](../tool_boundaries.md) |
 | 10 | Confirmation card with the worst case; chase logged, nothing sent; "Delete ORD-005" refused; 15-minute key | [`screens/06`, `07`](screens/); [actions_and_limits.md](../actions_and_limits.md) |
 | 11 | The 12 first-pass failures, by cause (5, 6, 1), the three found by probing and the bait failures | [failure_analysis.md](../failure_analysis.md) |
-| 12 | Feasibility answer (800 hoodies by the 25th: finishes 1 to 8 May, bottleneck Packing) and a watch that fires on 10 April | [`screens/05`, `08`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S5, S7) |
+| 12 | Feasibility answer (800 hoodies by the 25th: finishes 28 April to 12 May, bottleneck Packing; range widened by 3 working days, see [calibration.md](../calibration.md)) and a watch that fires on 10 April | [`screens/05`, `08`](screens/); [conversation_scenarios.md](../conversation_scenarios.md) (S5, S7) |
 
 The first-pass and held-out figures are for the **dashboard chat** (built-in tools, no language model). The discovery and feasibility figures
 come from the team's own simulator, so they show internal consistency, not real-world accuracy. The slides say both.

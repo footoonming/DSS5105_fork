@@ -818,6 +818,11 @@ const MON = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct
 const DOW = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const SW = {late: "late", at_risk: "at risk", on_track: "on track"};
 const FEAS_SLACK = 0.85;           // "likely" needs the cautious estimate to use at most 85% of the days available
+/* The range shown is the best and cautious estimates widened by this many working days at each end. Measured, not chosen:
+   unwidened, the real finish fell inside the range only about 7 times in 10 (180 test orders in 12 simulated futures);
+   widened by 3, 94% on futures not used to pick the 3 (split-conformal; analysis/calibration.py, docs/calibration.md).
+   The verdict still uses the unwidened estimates, whose verdicts were already well ordered. */
+const RANGE_WIDEN = 3;
 
 /* ---------- calendar helpers (Sundays closed) ---------- */
 const iso = d => d.toISOString().slice(0, 10);
@@ -973,7 +978,9 @@ const T = {
       const own = sum(ST, s => Math.ceil(a.pieces / (0.6 * usual[s])));   // one order uses at most 60% of a stage's day, so it needs this many days of its own
       const best = Math.max(own, Math.ceil(tb.daysBest)), cautious = Number.isFinite(tc.daysCautious) ? Math.max(own, Math.ceil(tc.daysCautious)) : null;
       const verdict = cautious != null && cautious <= W * FEAS_SLACK ? "likely" : cautious != null && cautious <= W ? "tight" : best <= W ? "only_if_prioritised" : "unlikely";
-      return {pieces: a.pieces, due: a.due, start, W, rows, best, cautious, bestDate: kthWork(start, best), cautiousDate: cautious == null ? null : kthWork(start, cautious), cap: CAP,
+      const low = Math.max(1, best - RANGE_WIDEN), high = cautious == null ? null : cautious + RANGE_WIDEN;
+      return {pieces: a.pieces, due: a.due, start, W, rows, best, cautious, bestDate: kthWork(start, best), cautiousDate: cautious == null ? null : kthWork(start, cautious),
+              low, high, lowDate: kthWork(start, low), highDate: high == null ? null : kthWork(start, high), widen: RANGE_WIDEN, cap: CAP,
               bottleneck: (cautious == null ? tc : tc).stage, bottleneckAhead: tc.aheadCautious, bottleneckUsual: tc.usual, rate, verdict}; }},
   list_by_risk: {...spec("Judgement", "Which orders are at high, medium or low risk of missing their due date, and how late they are likely to be.", "Promise an outcome: it is a projection under the stated assumptions.", "Empty list when nothing matches."),
     run: a => cur().orders.filter(o => o.risk && o.risk.level === a.level).sort((p, q) => (q.risk.late_days_best || 0) - (p.risk.late_days_best || 0))},
@@ -1222,8 +1229,8 @@ function feasAnswer(pieces, due, call, excl, productWord) {
   if (due < today()) return R("feasibility", [`${day(due)} has already passed; the briefing is for ${day(today())}.`]);
   const f = call("check_feasibility", {pieces, due, exclude: excl}); if (f.error) return R("feasibility", [f.error]);
   ctx.lastFeas = {pieces, due, product: productWord};
-  const l1 = f.cautiousDate ? `${VERDICT[f.verdict]} by ${day(due)}: I estimate it finishes between ${day(f.bestDate)} and ${day(f.cautiousDate)}, with ${pl(f.W, "working day")} available.`
-    : `${VERDICT[f.verdict]} by ${day(due)}: at best it finishes around ${day(f.bestDate)}, and if new orders keep arriving ahead of it, it may not finish within ${f.cap} working days. ${pl(f.W, "Working day")} are available.`;
+  const l1 = f.highDate ? `${VERDICT[f.verdict]} by ${day(due)}: I estimate it finishes between ${day(f.lowDate)} and ${day(f.highDate)}, with ${pl(f.W, "working day")} available.`
+    : `${VERDICT[f.verdict]} by ${day(due)}: at best it finishes around ${day(f.lowDate)}, and if new orders keep arriving ahead of it, it may not finish within ${f.cap} working days. ${pl(f.W, "Working day")} are available.`;
   const l2 = `Bottleneck: ${cap(f.bottleneck)}, with ${n(f.bottleneckAhead)} pieces already queued at a usual ${n(f.bottleneckUsual)} a day.`;
   const assumptions = [
     `Capacity is each stage's usual daily output (average of the previous 8 same weekdays) times a workshop factor of ${cur().capacity.workshop_factor}, estimated from what actually finished in the last 60 days (the production log shows less than ships).`,
@@ -1233,6 +1240,7 @@ function feasAnswer(pieces, due, call, excl, productWord) {
     `Later date also assumes new work keeps arriving at about ${n(Math.round(f.rate))} pieces a working day (average of the last ${cur().arrivals.window_days} days), with the usual lead times; new orders due earlier than this one go ahead of it.`,
     "All products are treated alike: the production log has no product breakdown, so the product does not change the answer.",
     "Workshop outsourcing is not included. 'Likely' means the cautious estimate uses at most 85% of the days available.",
+    `The range is widened by ${f.widen} working days at each end: tested on simulated orders, the unwidened range held the real finish only about 7 times in 10, the widened one 94%.`,
     ...(excl ? [`${excl} is excluded from the queue because it is the order being checked.`] : [])];
   const dd = plus(due, 7);
   return R("feasibility", [l1, l2, "This is an estimate with assumptions, not a commitment."], {assumptions,

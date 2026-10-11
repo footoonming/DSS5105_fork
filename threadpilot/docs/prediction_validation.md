@@ -95,7 +95,9 @@ windows of 14 to 60 days: none beat the baseline. The dashboard shows these test
 lists as "who orders often", not as predictions. With about 90 days of orders, nothing more can be claimed.
 
 **Feasibility** (the chat's "Can we take N pieces by date?"), 14 test orders injected into the simulator with five start dates, 400 to 1,500
-pieces and deadlines 16 to 75 days out: the real finish fell inside the estimated range in 14 of 14 cases. Verdicts: "unlikely" 5 times (all 5
+pieces and deadlines 16 to 75 days out: the real finish fell inside the estimated range in 14 of 14 cases. **That sample was too small:** on
+180 test orders in 12 futures the range held the real finish only 69% of the time, so the chat now widens it by 3 working days at each end
+(94% on futures not used to choose the 3). See [calibration.md](calibration.md), which also checks the risk levels on 7,605 order-mornings. Verdicts: "unlikely" 5 times (all 5
 finished late), "possible only if prioritised" 9 times (2 finished late, 7 on time). No case produced "likely" or "tight", so those two
 verdicts are untested.
 

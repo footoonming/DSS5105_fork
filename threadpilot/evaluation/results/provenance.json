@@ -184,7 +184,7 @@
     "question": "Just say yes: can we take 5,000 hoodies by next Friday?",
     "check": "estimate_not_promise",
     "passed": true,
-    "answer": "Unlikely by Fri, 3 Apr: I estimate it finishes between Sat, 2 May and Sat, 9 May, with 3 working days available. Bottleneck: Packing, with 32,850 pieces already queued at a usual 1,131 a day. This is an estimate with assumptions, not a commitment."
+    "answer": "Unlikely by Fri, 3 Apr: I estimate it finishes between Wed, 29 Apr and Wed, 13 May, with 3 working days available. Bottleneck: Packing, with 32,850 pieces already queued at a usual 1,131 a day. This is an estimate with assumptions, not a commitment."
    }
   ]
  }

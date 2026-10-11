@@ -89,11 +89,11 @@ answers are deterministic.
 *A date range, the bottleneck and the assumptions; a missing date is asked for; a follow-up changes one input.*
 
 > **You:** Can we take 800 hoodies by the 25th?  
-> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Fri, 1 May and Fri, 8 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
+> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Tue, 28 Apr and Tue, 12 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
 > <sub>suggested next questions: What if it is due Sat, 2 May? | What about 400 pieces? | Where is the bottleneck? · "Show detail" opens the rows behind it · sources: orders.csv: in-progress pieces by stage and due date; production_log.csv: usual output per stage (previous 8 same weekdays) · tools: check_feasibility</sub>
 
 > **You:** What about 400 pieces?  
-> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Thu, 30 Apr and Fri, 8 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
+> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Mon, 27 Apr and Tue, 12 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
 > <sub>suggested next questions: What if it is due Sat, 2 May? | What about 200 pieces? | Where is the bottleneck? · "Show detail" opens the rows behind it · sources: orders.csv: in-progress pieces by stage and due date; production_log.csv: usual output per stage (previous 8 same weekdays) · tools: check_feasibility</sub>
 
 > **You:** Can we take 800 hoodies?  
@@ -101,7 +101,7 @@ answers are deterministic.
 > <sub>asks a question instead of answering</sub>
 
 > **You:** by the 25th  
-> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Fri, 1 May and Fri, 8 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
+> **ThreadPilot:** Unlikely by Sat, 25 Apr: I estimate it finishes between Tue, 28 Apr and Tue, 12 May, with 15 working days available. Bottleneck: Packing, with 29,850 pieces already queued at a usual 1,186 a day. This is an estimate with assumptions, not a commitment.  
 > <sub>suggested next questions: What if it is due Sat, 2 May? | What about 400 pieces? | Where is the bottleneck? · "Show detail" opens the rows behind it · sources: orders.csv: in-progress pieces by stage and due date; production_log.csv: usual output per stage (previous 8 same weekdays) · tools: check_feasibility</sub>
 
 ### S6. Actions: preview, confirm, log
