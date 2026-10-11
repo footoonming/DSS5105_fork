@@ -126,10 +126,12 @@ def install_workflow_routes(app: FastAPI, data: Path) -> None:
     async def evidence_row(source: str, row: int) -> Evidence:
         """场景 1.3/2.1/2.2：白名单访问原始记录，展示引用对应数据。"""
         try:
-            rows = app.state.workflow.tools.rows(source)
-            if row < 2 or row > len(rows) + 1:
+            # Look the row up by its own number: a CSV line number for files, the record ID in the database. (Indexing by
+            # position assumed CSV line numbers, so on the database it returned the record before the one asked for.)
+            match = next((e for e in app.state.workflow.tools.rows(source) if e.row == row), None)
+            if match is None:
                 raise ValueError('No row')
-            return rows[row - 2]
+            return match
         except (ValueError, OSError):
             raise HTTPException(404, {'code': 'UNKNOWN_SOURCE_ROW', 'message': 'Evidence row not found.'})
 
