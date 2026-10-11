@@ -72,7 +72,7 @@ const screenshots = process.env.WORKSPACE_SCREENSHOT_DIR || require('os').tmpdir
     await page.locator('.sidebar a[href="#/ai"]').click();
     await page.setViewportSize({width:390,height:844});
     await page.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=0);
-    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile horizontal overflow');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),'Mobile horizontal overflow');
     await page.screenshot({path:path.join(screenshots,'workspace-mobile.png'),fullPage:true});
     await page.locator('[data-action=new-chat]').click();
     await page.locator('[name=visible-question]').fill('Start again');

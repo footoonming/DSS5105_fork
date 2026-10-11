@@ -75,3 +75,12 @@ Be ready for these three questions:
 | Invented-number rate and bait questions | 3 of 163 numbers untraced on the first run, 1 a real error (fixed); bait questions 10 of 16 first pass | [evaluation.md](evaluation.md) |
 | Calibration of risk levels and feasibility ranges | Risk levels calibrated (AUC 0.98); feasibility range held 69%, now widened by 3 working days (94% held out) | [calibration.md](calibration.md) |
 | What finding problems through the briefing is worth (paired simulation) | About 30 working days of lateness avoided per two months (95% 18 to 43); not time saved | [business_value.md](business_value.md) |
+
+## Ready for a public link
+
+| Concern | What the app does now | Checked by |
+|---|---|---|
+| Phones | No page scrolls sideways at 320 to 390 px (the briefing page was 878 px wide on a 390 px phone; hidden screen-reader labels escaped the order tables) | `tests/test_phone_width.py` |
+| Model cost on a shared link | At most `CHAT_REQUESTS_PER_MINUTE` (default 40) chat requests a minute per visitor, then HTTP 429 with Retry-After; OpenAI retries capped by `OPENAI_MAX_RETRIES` (default 2). The limit is per server instance, so also set a monthly spending limit on the OpenAI account | `backend/tests/test_rate_limit_and_errors.py` |
+| A wrong or revoked key | Says `MODEL_KEY_REJECTED` (check OPENAI_API_KEY) instead of a generic model error | `backend/tests/test_api.py` |
+| Page weight | Pages and JSON gzip-compressed (the chat stream is not); cover photo served as WebP, 195 KB instead of 2.4 MB | `backend/tests/test_project_layout.py` |

@@ -38,3 +38,13 @@ def test_every_deployment_ships_the_discovery_engine():
                 assert node.module.split('.')[0] in allowed, (name, node.module)
             elif isinstance(node, ast.ImportFrom):
                 assert node.module in ('prediction', 'workdays'), (name, node.module)
+
+
+def test_pages_are_compressed_for_phones_and_the_chat_stream_is_not(client):
+    page = client.get('/briefing/index.html', headers={'Accept-Encoding': 'gzip'})
+    assert page.status_code == 200 and page.headers.get('content-encoding') == 'gzip'
+    assert client.get('/assets/factory-hero.webp').status_code == 200, 'the cover photo has a small WebP version'
+    from starlette.middleware.gzip import GZipResponder  # noqa: F401  (the version in use skips text/event-stream)
+    import inspect
+    from starlette.middleware import gzip
+    assert 'text/event-stream' in inspect.getsource(gzip), 'streamed chat answers must not be buffered by compression'

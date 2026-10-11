@@ -8,7 +8,7 @@ const {chromium}=require('playwright'),assert=require('assert/strict'),fs=requir
  const out=path.resolve(__dirname,'../../backend/runtime/ui-review');
  await page.screenshot({path:path.join(out,'briefing-email-desktop.png')});
  await page.setViewportSize({width:390,height:844});
- assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
  await page.screenshot({path:path.join(out,'briefing-email-mobile.png')});
  await dialog.locator('.email-close').click();await page.locator('[data-action="briefing-email"]').click();await dialog.waitFor();
  // Isolate UI edit/conflict scenarios from the real shared draft.

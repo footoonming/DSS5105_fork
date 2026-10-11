@@ -10,7 +10,8 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from openai import APIConnectionError, APIStatusError, APITimeoutError, RateLimitError
+from openai import (APIConnectionError, APIStatusError, APITimeoutError, AuthenticationError, NotFoundError,
+                    PermissionDeniedError, RateLimitError)
 from pydantic import AwareDatetime, BaseModel, Field
 
 from .intent_classifier import IntentClassifier
@@ -83,6 +84,11 @@ def install_workflow_routes(app: FastAPI, data: Path) -> None:
             raise HTTPException(504, {'code': 'MODEL_TIMEOUT', 'message': 'Classification timed out.'})
         except RateLimitError:
             raise HTTPException(429, {'code': 'MODEL_RATE_LIMITED', 'message': 'Provider quota or rate limit reached.'})
+        except (AuthenticationError, PermissionDeniedError):
+            # Said plainly: a rejected key used to come back as "provider unavailable", which sent people looking at the network.
+            raise HTTPException(503, {'code': 'MODEL_KEY_REJECTED', 'message': 'The model provider rejected the API key. Check OPENAI_API_KEY (no spaces or quotes) and that the key is active.'})
+        except NotFoundError:
+            raise HTTPException(503, {'code': 'MODEL_NOT_AVAILABLE', 'message': 'The configured model is not available to this API key. Check OPENAI_MODEL.'})
         except (APIConnectionError, APIStatusError):
             raise HTTPException(502, {'code': 'MODEL_API_ERROR', 'message': 'Classification provider unavailable.'})
         except (OSError, SQLAlchemyError):

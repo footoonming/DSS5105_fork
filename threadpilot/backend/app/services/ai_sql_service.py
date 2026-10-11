@@ -92,7 +92,7 @@ class AISQLService:
                 raise ValueError('SQL account must have only direct SELECT/USAGE grants; roles are not accepted')
         self.db = SQLDatabase(self.engine, include_tables=list(MODELS), sample_rows_in_table_info=0)
         self.llm = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key.get_secret_value(),
-                              base_url=settings.openai_base_url, timeout=settings.openai_timeout_seconds, max_retries=0)
+                              base_url=settings.openai_base_url, timeout=settings.openai_timeout_seconds, max_retries=settings.openai_max_retries)
         self.lock = threading.Lock()
         self.history_engine = make_engine(settings.database_url.get_secret_value()) if settings.workflow_storage == 'database' else None
         self.history_store = SQLWorkflowStore(self.history_engine) if self.history_engine else None

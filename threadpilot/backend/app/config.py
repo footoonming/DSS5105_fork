@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     openai_model: str = 'gpt-4.1'
     intent_api_style: Literal['responses', 'chat_completions'] = 'responses'
     openai_timeout_seconds: float = 60
+    openai_max_retries: int = Field(default=2, ge=0, le=5)      # bounded retries on rate limits, 5xx and dropped connections
+    chat_requests_per_minute: int = Field(default=40, ge=0)     # per client, on endpoints that call the model; 0 turns it off
     data_api_token: SecretStr = SecretStr('')
     sync_enabled: bool = False
     sync_interval_minutes: int = Field(default=5, ge=1)

@@ -33,7 +33,7 @@ async function serve(root){
   await page.screenshot({path:path.join(out,'evidence-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=0);
-  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Evidence mobile overflow');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),'Evidence mobile overflow');
   await page.screenshot({path:path.join(out,'evidence-mobile.png'),fullPage:true});
   await page.goto(url+'/#/cover');await page.locator('.cover').waitFor();assert.equal(await page.locator('.cover footer').count(),0);
   assert.deepEqual(errors,[]);console.log('PASS: UTC+8 minute formatting, date rollover, date-only values, unchanged Order center DOM and table styles, responsive evidence, clean cover.');

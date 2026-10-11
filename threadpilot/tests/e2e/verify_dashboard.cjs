@@ -44,7 +44,7 @@ const data={business_date:'2026-04-01',counts,health:{on_track:17,at_risk:9,late
   if(process.env.DASHBOARD_LIVE_URL){await page.goto(process.env.DASHBOARD_LIVE_URL);await page.locator('.todo-item').first().waitFor();await page.locator('.health-counts').waitFor();}
   await page.screenshot({path:path.join(out,'dashboard-desktop.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=0);
-  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile overflow');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),'Mobile overflow');
   await page.screenshot({path:path.join(out,'dashboard-mobile.png'),fullPage:true});assert.deepEqual(errors,[]);
   console.log('PASS: KPI sparklines, archived briefing time, manual task escaping, handle/undo, reload persistence, failed-save rollback, desktop/mobile layout.');
  }finally{await browser.close();server.closeAllConnections();server.close();}
