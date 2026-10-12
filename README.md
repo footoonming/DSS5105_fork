@@ -306,7 +306,7 @@ numbers):
 
 * **Dashboard** (`/#/dashboard`, the cover's **Enter today’s dashboard**): reads the database through the API. KPI cards
   with history, order health from the delay model, a shared to-do list, the saved 07:00 briefing with an editable email
-  draft, and an AI diagnosis. Built by the team; see [DASHBOARD_PREDICTIONS.md](threadpilot/docs/DASHBOARD_PREDICTIONS.md).
+  draft that sends from the manager's Outlook in one click ([setup](threadpilot/docs/outlook_setup.md)), and an AI diagnosis. Built by the team; see [DASHBOARD_PREDICTIONS.md](threadpilot/docs/DASHBOARD_PREDICTIONS.md).
 * **Morning Briefing** (the left menu, `briefing/index.html`): a self-contained page that replays a simulated fortnight
   of mornings, so the briefing, "what changed since yesterday", predictions and the chat can be shown with no database
   or API key. It opens straight from the file ([`demo/briefing_demo.html`](threadpilot/demo/briefing_demo.html); the

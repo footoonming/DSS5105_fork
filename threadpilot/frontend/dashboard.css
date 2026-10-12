@@ -65,4 +65,9 @@
 .briefing-email-dialog textarea{min-height:320px;font-size:16px;line-height:1.7}
 .briefing-email-dialog input{font-size:16px}
 .briefing-email-dialog .email-status{font-size:14px;color:var(--muted)}
-@media(max-width:650px){.briefing-email-dialog{padding:20px}.briefing-email-dialog h2{font-size:23px}.briefing-email-dialog textarea{min-height:260px}}
+.briefing-email-dialog label{margin:14px 0}.briefing-email-dialog .email-status:empty{display:none}.briefing-email-dialog .email-account{font-size:13px;margin:10px 0 0;overflow-wrap:anywhere}.briefing-email-dialog .email-account:empty{display:none}
+/* Send stays in view while the message scrolls */
+.briefing-email-dialog .email-footer{position:sticky;bottom:-28px;margin:8px -28px -28px;padding:14px 28px 20px;background:#fff;border-top:1px solid var(--line)}.briefing-email-dialog .email-footer .email-status{margin:0 0 10px}.briefing-email-dialog .email-send{font-weight:600}
+.link-button{border:0;background:none;padding:0;color:var(--blue);text-decoration:underline;font:inherit}.link-button:hover{background:none;color:#406583}
+@media(max-width:400px){.briefing-email-dialog .wide-only{display:none}}
+@media(max-width:650px){.briefing-email-dialog{padding:20px}.briefing-email-dialog .email-footer{bottom:-20px;margin:8px -20px -20px;padding:12px 20px 14px}.briefing-email-dialog .actions{gap:8px}.briefing-email-dialog .actions>button{flex:1 1 0;padding:8px 4px;font-size:13px;white-space:nowrap;min-width:0}.briefing-email-dialog .actions>.email-send{flex:1 1 100%;padding:12px;font-size:15px}.briefing-email-dialog .email-account{font-size:12px}.briefing-email-dialog h2{font-size:23px}.briefing-email-dialog textarea{min-height:260px}}

@@ -32,6 +32,13 @@ class EmailUpdate(BaseModel):
     subject: str = Field(min_length=1, max_length=240)
     body: str = Field(min_length=1, max_length=12000)
     version: int = Field(ge=1)
+    to: list[str] | None = Field(default=None, max_length=50)    # None keeps the saved recipients
+    cc: list[str] | None = Field(default=None, max_length=50)
+
+    @field_validator('to', 'cc')
+    @classmethod
+    def recipients(cls, value):
+        return None if value is None else briefing_email.addresses(value)
 
     @field_validator('subject', 'body')
     @classmethod
@@ -40,6 +47,24 @@ class EmailUpdate(BaseModel):
         if not value or '\x00' in value or (info.field_name == 'subject' and any(c in value for c in '\r\n')):
             raise ValueError('Enter a valid subject and body.')
         return value
+
+class EmailSent(BaseModel):
+    """What the manager's own mailbox accepted. The server never sends email or sees a mail token."""
+    version: int = Field(ge=1)
+    to: list[str] = Field(min_length=1, max_length=50)
+    cc: list[str] = Field(default=[], max_length=50)
+    sent_by: str = Field(default='', max_length=254)
+
+    @field_validator('to', 'cc')
+    @classmethod
+    def recipients(cls, value):
+        return briefing_email.addresses(value)
+
+    @field_validator('sent_by')
+    @classmethod
+    def sender(cls, value):
+        value = value.strip()
+        return briefing_email.addresses([value])[0] if value else ''
 
 @router.post('/dashboard/briefings/{day}/email')
 def generate_email(day: date, request: Request, response: Response):
@@ -52,9 +77,21 @@ def generate_email(day: date, request: Request, response: Response):
 @router.put('/dashboard/briefings/{day}/email')
 def save_email(day: date, body: EmailUpdate, request: Request, response: Response):
     response.headers['Cache-Control'] = 'no-store'
-    result = briefing_email.save(request.app.state.database, day.isoformat(), body.subject, body.body, body.version)
+    result = briefing_email.save(request.app.state.database, day.isoformat(), body.subject, body.body, body.version,
+                                 body.to, body.cc)
     if result is None:
         raise HTTPException(409, 'This draft changed on another device. Reopen it before saving.')
+    return result
+
+@router.post('/dashboard/briefings/{day}/email/sent')
+def email_sent(day: date, body: EmailSent, request: Request, response: Response):
+    response.headers['Cache-Control'] = 'no-store'
+    result = briefing_email.record_sent(request.app.state.database, day.isoformat(), body.version, body.to, body.cc,
+                                        body.sent_by)
+    if result is None:
+        raise HTTPException(404, 'No email draft exists for this date.')
+    logging.getLogger(__name__).info('Morning email for %s sent from %s to %d recipient(s)', day.isoformat(), body.sent_by or 'unknown',
+                len(body.to) + len(body.cc))
     return result
 
 @router.get('/dashboard')

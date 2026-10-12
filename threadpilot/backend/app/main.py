@@ -94,6 +94,9 @@ def create_app() -> FastAPI:
                                                        'message': f'Too many questions in a minute from this device. Try again in {wait} seconds.'}})
         response = await call_next(request)
         response.headers['X-Request-ID'] = request.state.request_id
+        if request.url.path.endswith('/auth-redirect.html'):
+            # Microsoft sign-in returns here with a one-time code in the address; never let a cache keep this page.
+            response.headers['Cache-Control'] = 'no-store'
         return response
 
     # Compress pages and JSON for phones: the briefing page is 1.6 MB as text and about 0.2 MB compressed. Server-sent events

@@ -73,7 +73,9 @@ Add chase-up 进入现有 AI 催办草稿与确认流程。实际发送仍取决
 ## Morning summary email drafts
 
 - Morning summary → Generate email builds an English draft from the selected latest saved briefing, including production, priority issues, decisions, up to three recommendations and handled items.
-- One shared draft per archived report date; opening again preserves edits. Save, copy and EML download persist subject/body. No mail is sent by this feature.
+- One shared draft per archived report date; opening again preserves edits. Save, copy and EML download persist subject/body and the To/Cc lists.
+- **Send with Outlook** sends the reviewed draft from the manager's own Outlook mailbox through Microsoft Graph, in one click once they have signed in to Microsoft (the browser holds the sign-in; the server never sees a Microsoft token). Without an app registration the button is **Open in Outlook** (a filled-in mailto). Setup, security and tests: [outlook_setup.md](outlook_setup.md).
+- `briefing_email_deliveries` (migration `0006`, additive) stores the To/Cc lists and each send: time, sender, draft version, count. A new day's draft starts with the last list used, else `BRIEFING_EMAIL_TO`. `POST /api/dashboard/briefings/{day}/email/sent` records a send after Outlook accepted it; it sends nothing itself.
 - `briefing_email_drafts` stores subject, body, original report snapshot, version and UTC+8 timestamps. Migration `0005` is additive and has been applied to the configured CloudBase database.
 - `POST /api/dashboard/briefings/{day}/email` creates or retrieves the draft. `PUT` saves with optimistic version checking; a conflict preserves browser edits. Existing workspace authentication applies.
 - Generation uses the archived report, not a fresh model call or changing live data. Missing saved briefings return 404. Draft source snapshots remain unchanged after manual edits.

@@ -36,3 +36,4 @@ class Settings(BaseSettings):
     api_access_token: SecretStr = SecretStr('')
     scheduler_token: SecretStr = SecretStr('')
     morning_scheduler_enabled: bool = False
+    briefing_email_to: str = ''                                 # comma-separated default recipients for the morning email

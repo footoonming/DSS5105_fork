@@ -129,3 +129,70 @@ def test_briefing_email_archive_edit_conflict_and_auth(business_database, monkey
         with business_database.engine.connect() as db:
             assert db.scalar(select(func.count()).select_from(drafts)) == 1
             assert '2026-04-01' in db.scalar(select(drafts.c.source_payload))
+
+
+def test_morning_email_recipients_carry_over_and_sending_is_recorded(business_database, monkeypatch):
+    """The manager types recipients once; the next day's draft already has them, and a send is recorded, not performed."""
+    service, data = setup(business_database)
+    service.generate_due(data, now())
+    service.generate_due(data, now('2026-10-11T07:00:00+08:00'))
+    for k, v in {'OPENAI_API_KEY':'', 'API_ACCESS_TOKEN':'test-access', 'BACKGROUND_TASKS_ENABLED':'false',
+                 'MORNING_SCHEDULER_ENABLED':'false', 'SERVE_FRONTEND':'false',
+                 'BRIEFING_EMAIL_TO':'ops@example.com, not-an-address'}.items(): monkeypatch.setenv(k, v)
+    headers={'X-ThreadPilot-Token':'test-access'}
+    first, second = '/api/dashboard/briefings/2026-10-10/email', '/api/dashboard/briefings/2026-10-11/email'
+    with TestClient(create_app()) as client:
+        draft=client.post(first,headers=headers).json()
+        assert draft['to'] == [] and draft['sent'] is None          # a bad default list is ignored, not half-used
+        bad={'subject':'S','body':'B','version':1,'to':['gm@example.com','x@y']}
+        assert client.put(first,headers=headers,json=bad).status_code == 422
+        assert client.put(first,headers=headers,json={**bad,'to':['a@b.co']*1+['gm@x.com, cc@x.com']}).status_code == 422
+        saved=client.put(first,headers=headers,json={'subject':'S','body':'B','version':1,
+                                                     'to':['GM@Factory.com',' planner@factory.com ','gm@factory.com'],
+                                                     'cc':['boss@factory.com']}).json()
+        assert saved['to'] == ['GM@Factory.com','planner@factory.com'] and saved['cc'] == ['boss@factory.com']
+        kept=client.put(first,headers=headers,json={'subject':'S2','body':'B','version':2}).json()
+        assert kept['to'] == saved['to']                              # saving without recipients keeps them
+        assert client.post('/api/dashboard/briefings/2099-01-01/email/sent',headers=headers,
+                           json={'version':1,'to':['a@b.co']}).status_code == 404
+        assert client.post(first+'/sent',headers=headers,json={'version':3,'to':[]}).status_code == 422
+        assert client.post(first+'/sent',json={'version':3,'to':['a@b.co']}).status_code == 401
+        sent=client.post(first+'/sent',headers=headers,json={'version':3,'to':kept['to'],'sent_by':'gm@factory.com'}).json()
+        assert sent['sent']['by'] == 'gm@factory.com' and sent['sent']['version'] == 3 and sent['sent']['count'] == 1
+        again=client.post(first+'/sent',headers=headers,json={'version':3,'to':kept['to'],'sent_by':'gm@factory.com'}).json()
+        assert again['sent']['count'] == 2
+        assert client.post(first,headers=headers).json()['sent']['count'] == 2   # reopening shows it was sent
+        nxt=client.post(second,headers=headers).json()
+        assert nxt['to'] == kept['to'] and nxt['cc'] == [] and nxt['sent'] is None
+
+
+def test_default_recipients_come_from_the_environment(business_database, monkeypatch):
+    service, data = setup(business_database)
+    service.generate_due(data, now())
+    for k, v in {'OPENAI_API_KEY':'', 'API_ACCESS_TOKEN':'', 'BACKGROUND_TASKS_ENABLED':'false',
+                 'MORNING_SCHEDULER_ENABLED':'false', 'SERVE_FRONTEND':'false',
+                 'BRIEFING_EMAIL_TO':'gm@factory.com,planner@factory.com'}.items(): monkeypatch.setenv(k, v)
+    with TestClient(create_app()) as client:
+        assert client.post('/api/dashboard/briefings/2026-10-10/email').json()['to'] == ['gm@factory.com','planner@factory.com']
+
+
+def test_the_delivery_migration_upgrades_an_existing_database(tmp_path):
+    """0006 adds the table to a database made before it existed, and is a no-op on a fresh one."""
+    import importlib.util
+    import sqlalchemy as sa
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from app.briefing_email import drafts
+    path = __import__('pathlib').Path(__file__).resolve().parents[2] / 'data/migrations/versions/0006_briefing_email_delivery.py'
+    spec = importlib.util.spec_from_file_location('m0006', path); m = importlib.util.module_from_spec(spec)
+    engine = sa.create_engine(f'sqlite:///{tmp_path/"old.sqlite3"}')
+    drafts.create(engine)                                   # the database as 0005 left it
+    with engine.begin() as conn:
+        ctx = MigrationContext.configure(conn)
+        with Operations.context(ctx):
+            spec.loader.exec_module(m); m.upgrade(); m.upgrade()
+    assert {'briefing_email_drafts','briefing_email_deliveries'} <= set(sa.inspect(engine).get_table_names())
+    with engine.begin() as conn:
+        with Operations.context(MigrationContext.configure(conn)):
+            m.downgrade()
+    assert 'briefing_email_deliveries' not in sa.inspect(engine).get_table_names()

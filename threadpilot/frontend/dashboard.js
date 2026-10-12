@@ -78,37 +78,77 @@ document.addEventListener('submit',async e=>{
 });
 render();if(route==='dashboard')loadDashboard();
 
+const EMAIL_ADDRESS=/^[^@\s,;<>"()]+@[^@\s,;<>"()]+\.[^@\s,;<>"()]+$/;
+function readAddresses(text){const list=(text||'').split(/[\s,;]+/).filter(Boolean),bad=list.filter(a=>a.length>254||!EMAIL_ADDRESS.test(a));const seen=new Set();return {list:list.filter(a=>!seen.has(a.toLowerCase())&&seen.add(a.toLowerCase())),bad}}
 async function openBriefingEmail(day, button){
  if(document.getElementById('briefing-email-dialog'))return;
  button.disabled=true;
  try{
   let draft=await dashboardRequest('dashboard/briefings/'+encodeURIComponent(day)+'/email',{method:'POST'});
+  const outlook=window.ThreadPilotOutlook,direct=!!outlook?.configured();
   const dialog=document.createElement('dialog');dialog.id='briefing-email-dialog';dialog.className='briefing-email-dialog';
-  dialog.innerHTML=`<div class="section-heading"><h2>Morning summary email</h2><button type="button" class="email-close" aria-label="Close email">Close</button></div><p class="muted">Draft · ${esc(day)} · Review before sending</p><form><label>Subject<input name="subject" required maxlength="240"></label><label>Message<textarea name="body" required maxlength="12000"></textarea></label><p class="email-status" role="status"></p><div class="actions"><button type="submit" class="primary">Save draft</button><button type="button" class="email-copy">Copy email</button><button type="button" class="email-download">Download .eml</button></div></form>`;
-  const form=dialog.querySelector('form'),status=dialog.querySelector('.email-status');
+  dialog.innerHTML=`<div class="section-heading"><h2>Morning summary email</h2><button type="button" class="email-close" aria-label="Close email">Close</button></div><p class="muted">Draft · ${esc(day)} · Review before sending</p><form novalidate><label>To<input name="to" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000" placeholder="name@company.com, another@company.com"></label><label>Cc <span class="muted">(optional)</span><input name="cc" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000"></label><label>Subject<input name="subject" required maxlength="240"></label><label>Message<textarea name="body" required maxlength="12000"></textarea></label><div class="email-footer"><p class="email-status" role="status" aria-live="polite"></p><div class="actions"><button type="button" class="primary email-send">${direct?'Send with Outlook':'Open in Outlook'}</button><button type="submit" class="email-save">Save draft</button><button type="button" class="email-copy">Copy email</button><button type="button" class="email-download" title="Download as an .eml file">Download<span class="wide-only"> .eml</span></button></div><p class="email-account muted">${direct?'':'Opens the email in Outlook or your mail app with everything filled in; press Send there.'}</p></div></form>`;
+  const form=dialog.querySelector('form'),status=dialog.querySelector('.email-status'),sendButton=dialog.querySelector('.email-send'),accountLine=dialog.querySelector('.email-account');
   form.elements.subject.value=draft.subject;form.elements.body.value=draft.body;
+  form.elements.to.value=(draft.to||[]).join(', ');form.elements.cc.value=(draft.cc||[]).join(', ');
   let dirty=false,busy=false;
-  const markSaved=()=>{dirty=false;status.textContent='Saved · '+formatWorkspaceTime(draft.updated_at)};markSaved();
+  const sentLine=()=>draft.sent?`Sent ${formatWorkspaceTime(draft.sent.at)}${draft.sent.by?' from '+draft.sent.by:''} to ${(draft.to||[]).concat(draft.cc||[]).join(', ')}`:'';
+  const markSaved=()=>{dirty=false;status.textContent=draft.sent?sentLine():'Saved · '+formatWorkspaceTime(draft.updated_at);if(direct)sendButton.textContent=draft.sent?'Send again':'Send with Outlook'};markSaved();
   form.addEventListener('input',()=>{dirty=true;status.textContent='Unsaved changes'});
+  const lock=on=>{busy=on;form.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=on)};
   const close=()=>{if(!busy&&(!dirty||confirm('Discard unsaved email changes?')))dialog.close()};
   dialog.querySelector('.email-close').onclick=close;
   dialog.addEventListener('cancel',e=>{e.preventDefault();close()});
   dialog.addEventListener('close',()=>dialog.remove());
-  async function persist(){
-   if(busy||!form.reportValidity())return false;
+  function recipients(required){
+   const to=readAddresses(form.elements.to.value),cc=readAddresses(form.elements.cc.value),bad=to.bad.concat(cc.bad);
+   if(bad.length){status.textContent='Check these addresses: '+bad.join(', ');form.elements[to.bad.length?'to':'cc'].focus();return null}
+   if(required&&!to.list.length){status.textContent='Add at least one address in To.';form.elements.to.focus();return null}
+   return {to:to.list,cc:cc.list};
+  }
+  async function save(people){
    const subject=form.elements.subject.value.trim(),body=form.elements.body.value.trim();
    if(!subject||!body||/[\r\n]/.test(subject)){status.textContent='Enter a subject and message.';return false}
-   busy=true;form.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=true);
-   try{draft=await dashboardRequest('dashboard/briefings/'+encodeURIComponent(day)+'/email',{method:'PUT',body:JSON.stringify({subject,body,version:draft.version})});markSaved();return true}
+   try{draft=await dashboardRequest('dashboard/briefings/'+encodeURIComponent(day)+'/email',{method:'PUT',body:JSON.stringify({subject,body,version:draft.version,...people})});markSaved();return true}
    catch(e){status.textContent=e.message+' Your edits are still here.';return false}
-   finally{busy=false;form.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=false)}
+  }
+  async function persist(){
+   if(busy)return false;const people=recipients(false);if(!people)return false;
+   lock(true);try{return await save(people)}finally{lock(false)}
   }
   form.addEventListener('submit',async e=>{e.preventDefault();await persist()});
-  dialog.querySelector('.email-copy').onclick=async()=>{if(!await persist())return;try{await navigator.clipboard.writeText('Subject: '+draft.subject+'\n\n'+draft.body);status.textContent='Saved and copied'}catch{status.textContent='Saved. Select the subject and message to copy manually.'}};
+  const showAccount=()=>outlook.account().then(name=>{if(!dialog.isConnected)return;
+   accountLine.innerHTML=name?`Sends from your Outlook as <strong>${esc(name)}</strong> · <button type="button" class="link-button email-forget">Use another account</button>`:'The first time, Microsoft asks you to sign in and allow ThreadPilot to send email for you. After that it is one click.';
+   const forget=accountLine.querySelector('.email-forget');if(forget)forget.onclick=async()=>{await outlook.forget();accountLine.textContent='Signed out of Outlook on this device. The next send asks you to sign in.'}});
+  if(direct)showAccount();
+  let attempt=0,signingIn=false;
+  sendButton.onclick=async()=>{
+   if(busy&&!signingIn)return;const people=recipients(true);if(!people)return;
+   if(!direct){if(!await persist())return;location.href=outlook.mailto({...people,subject:draft.subject,body:draft.body});status.textContent='Opened in your mail app. Press Send there.';return}
+   if(draft.sent&&!signingIn&&!confirm('This summary was already sent. Send it again?'))return;
+   const mine=++attempt;
+   // Send stays pressable while Microsoft's window is open: if it was closed or lost, pressing again starts over.
+   lock(true);signingIn=true;sendButton.disabled=false;status.textContent='Sending from Outlook…';
+   const waiting=setTimeout(()=>{if(mine===attempt&&signingIn)status.textContent='Finish signing in to Microsoft in the window that opened. Closed it by mistake? Press Send again.'},1500);
+   try{
+    let auth;
+    try{auth=await outlook.signIn()}finally{clearTimeout(waiting)}   // first: only the click itself may open Microsoft's sign-in window
+    if(mine!==attempt)return;
+    signingIn=false;sendButton.disabled=true;showAccount();
+    if(!await save(people))return;
+    status.textContent='Sending from Outlook…';
+    const result=await outlook.send(auth,{...people,subject:draft.subject,body:draft.body});
+    try{draft=await dashboardRequest('dashboard/briefings/'+encodeURIComponent(day)+'/email/sent',{method:'POST',body:JSON.stringify({version:draft.version,...people,sent_by:result.from})});markSaved();toast('Morning summary sent from Outlook')}
+    catch{draft={...draft,sent:{at:new Date().toISOString(),by:result.from}};markSaved();status.textContent='Sent from Outlook, but ThreadPilot could not record it. It is in your Outlook Sent Items.'}
+   }catch(e){if(mine===attempt)status.textContent=e.message||'Not sent.'}
+   finally{if(mine===attempt){signingIn=false;lock(false)}}
+  };
+  dialog.querySelector('.email-copy').onclick=async()=>{if(!await persist())return;try{await navigator.clipboard.writeText((draft.to?.length?'To: '+draft.to.join(', ')+'\n':'')+'Subject: '+draft.subject+'\n\n'+draft.body);status.textContent='Saved and copied'}catch{status.textContent='Saved. Select the subject and message to copy manually.'}};
   dialog.querySelector('.email-download').onclick=async()=>{if(!await persist())return;
    const encode=s=>btoa(Array.from(new TextEncoder().encode(s),b=>String.fromCharCode(b)).join(''));
    const encodedSubject=Array.from(draft.subject).reduce((parts,c)=>{if(new TextEncoder().encode(parts.at(-1)+c).length>42)parts.push(c);else parts[parts.length-1]+=c;return parts},['']).map(s=>'=?UTF-8?B?'+encode(s)+'?=').join('\r\n ');
-   const eml='X-Unsent: 1\r\nSubject: '+encodedSubject+'\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n'+encode(draft.body.replace(/\r?\n/g,'\r\n')).match(/.{1,76}/g).join('\r\n')+'\r\n';
+   const headers=(draft.to?.length?'To: '+draft.to.join(', ')+'\r\n':'')+(draft.cc?.length?'Cc: '+draft.cc.join(', ')+'\r\n':'');
+   const eml='X-Unsent: 1\r\n'+headers+'Subject: '+encodedSubject+'\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n'+encode(draft.body.replace(/\r?\n/g,'\r\n')).match(/.{1,76}/g).join('\r\n')+'\r\n';
    const url=URL.createObjectURL(new Blob([eml],{type:'message/rfc822'})),a=document.createElement('a');a.href=url;a.download='morning-summary-'+day+'.eml';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='Saved and downloaded';
   };
   document.body.append(dialog);dialog.showModal();

@@ -1,5 +1,6 @@
-"""Persist editable email drafts grounded in an archived morning briefing."""
+"""Persist editable email drafts grounded in an archived morning briefing, who they go to, and when they were sent."""
 import json
+import re
 from datetime import datetime
 
 import sqlalchemy as sa
@@ -17,16 +18,90 @@ drafts = sa.Table('briefing_email_drafts', metadata,
     sa.Column('created_at', sa.String(40), nullable=False),
     sa.Column('updated_at', sa.String(40), nullable=False))
 
+# Kept apart from the draft so the draft's table never has to change. One row per briefing day: who the email is for,
+# and the last time it was sent. The email itself is sent from the manager's own mailbox (see frontend/outlook.js);
+# the server only records that it happened.
+deliveries = sa.Table('briefing_email_deliveries', metadata,
+    sa.Column('briefing_day', sa.String(10), primary_key=True),
+    sa.Column('to_addresses', sa.Text, nullable=False, default=''),
+    sa.Column('cc_addresses', sa.Text, nullable=False, default=''),
+    sa.Column('sent_at', sa.String(40)),
+    sa.Column('sent_by', sa.String(254)),
+    sa.Column('sent_version', sa.Integer),
+    sa.Column('send_count', sa.Integer, nullable=False, default=0),
+    sa.Column('updated_at', sa.String(40), nullable=False))
 
-def public(row):
-    return {k: row[k] for k in ('briefing_day', 'subject', 'body', 'version', 'created_at', 'updated_at')}
+ADDRESS = re.compile(r"^[^@\s,;<>\"()]+@[^@\s,;<>\"()]+\.[^@\s,;<>\"()]+$")
+MAX_RECIPIENTS = 20
+
+
+def addresses(values):
+    """Normalise a list of email addresses: trimmed, lower-case duplicates dropped, order kept. Raises ValueError."""
+    seen, out = set(), []
+    for value in values or []:
+        value = (value or '').strip()
+        if not value:
+            continue
+        if len(value) > 254 or not ADDRESS.match(value):
+            raise ValueError(f'"{value}" is not an email address.')
+        if value.lower() not in seen:
+            seen.add(value.lower())
+            out.append(value)
+    if len(out) > MAX_RECIPIENTS:
+        raise ValueError(f'At most {MAX_RECIPIENTS} recipients.')
+    return out
+
+
+def split(text):
+    return [a for a in (text or '').split(',') if a]
+
+
+def default_recipients():
+    from .config import Settings
+    try:
+        return addresses(split(Settings().briefing_email_to))
+    except ValueError:
+        return []
+
+
+def public(row, delivery=None, fallback_to=()):
+    out = {k: row[k] for k in ('briefing_day', 'subject', 'body', 'version', 'created_at', 'updated_at')}
+    out['to'] = split(delivery['to_addresses']) if delivery else list(fallback_to)
+    out['cc'] = split(delivery['cc_addresses']) if delivery else []
+    out['sent'] = ({'at': delivery['sent_at'], 'by': delivery['sent_by'], 'version': delivery['sent_version'],
+                    'count': delivery['send_count']} if delivery and delivery['sent_at'] else None)
+    return out
+
+
+def _read(db, day):
+    row = db.execute(sa.select(drafts).where(drafts.c.briefing_day == day)).mappings().first()
+    if row is None:
+        return None
+    delivery = db.execute(sa.select(deliveries).where(deliveries.c.briefing_day == day)).mappings().first()
+    fallback = ()
+    if delivery is None:
+        # Yesterday's list is today's best guess, so the manager types recipients once, not every morning.
+        last = db.execute(sa.select(deliveries.c.to_addresses).where(deliveries.c.to_addresses != '')
+                          .order_by(deliveries.c.briefing_day.desc()).limit(1)).scalar()
+        fallback = split(last) if last else default_recipients()
+    return public(row, delivery, fallback)
+
+
+def _store(db, day, values):
+    stamp = datetime.now(LOCAL).isoformat()
+    current = db.execute(sa.select(deliveries).where(deliveries.c.briefing_day == day)).mappings().first()
+    if current is None:
+        db.execute(deliveries.insert().values({'to_addresses': '', 'cc_addresses': '', 'send_count': 0, **values,
+                                               'briefing_day': day, 'updated_at': stamp}))
+    else:
+        db.execute(deliveries.update().where(deliveries.c.briefing_day == day).values(updated_at=stamp, **values))
 
 
 def generate(database, day):
     with database.engine.begin() as db:
-        existing = db.execute(sa.select(drafts).where(drafts.c.briefing_day == day)).mappings().first()
+        existing = _read(db, day)
         if existing:
-            return public(existing)
+            return existing
         report = db.execute(sa.select(briefings).where(briefings.c.day == day)).mappings().first()
         if not report:
             raise KeyError(day)
@@ -47,14 +122,34 @@ def generate(database, day):
                       body='\n'.join(lines), source_payload=json.dumps(source, ensure_ascii=False),
                       version=1, created_at=stamp, updated_at=stamp)
         SQLWorkflowStore(database.engine).upsert(db, drafts, values)
-        return public(db.execute(sa.select(drafts).where(drafts.c.briefing_day == day)).mappings().one())
+        return _read(db, day)
 
 
-def save(database, day, subject, body, version):
+def save(database, day, subject, body, version, to=None, cc=None):
+    """Save an edited draft. to/cc of None leave the recipients as they are."""
     with database.engine.begin() as db:
         result = db.execute(drafts.update().where(drafts.c.briefing_day == day, drafts.c.version == version)
                             .values(subject=subject, body=body, version=version+1,
                                     updated_at=datetime.now(LOCAL).isoformat()))
         if result.rowcount != 1:
             return None
-        return public(db.execute(sa.select(drafts).where(drafts.c.briefing_day == day)).mappings().one())
+        if to is not None or cc is not None:
+            changes = {}
+            if to is not None:
+                changes['to_addresses'] = ','.join(to)
+            if cc is not None:
+                changes['cc_addresses'] = ','.join(cc)
+            _store(db, day, changes)
+        return _read(db, day)
+
+
+def record_sent(database, day, version, to, cc, sent_by):
+    """Record that the manager's mailbox accepted the email. Returns None if there is no draft for that day."""
+    with database.engine.begin() as db:
+        if db.execute(sa.select(drafts.c.version).where(drafts.c.briefing_day == day)).scalar() is None:
+            return None
+        count = db.execute(sa.select(deliveries.c.send_count).where(deliveries.c.briefing_day == day)).scalar() or 0
+        _store(db, day, {'to_addresses': ','.join(to), 'cc_addresses': ','.join(cc),
+                         'sent_at': datetime.now(LOCAL).isoformat(), 'sent_by': sent_by, 'sent_version': version,
+                         'send_count': count + 1})
+        return _read(db, day)

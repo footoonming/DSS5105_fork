@@ -1027,6 +1027,57 @@
         }
       }
     },
+    "/api/dashboard/briefings/{day}/email/sent": {
+      "post": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Email Sent",
+        "operationId": "email_sent_api_dashboard_briefings__day__email_sent_post",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Day"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/dashboard": {
       "get": {
         "tags": [
@@ -1620,6 +1671,46 @@
         "type": "object",
         "title": "DialogState"
       },
+      "EmailSent": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "To"
+          },
+          "cc": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Cc",
+            "default": []
+          },
+          "sent_by": {
+            "type": "string",
+            "maxLength": 254,
+            "title": "Sent By",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "to"
+        ],
+        "title": "EmailSent",
+        "description": "What the manager's own mailbox accepted. The server never sends email or sees a mail token."
+      },
       "EmailUpdate": {
         "properties": {
           "subject": {
@@ -1638,6 +1729,36 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Version"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
           }
         },
         "type": "object",
