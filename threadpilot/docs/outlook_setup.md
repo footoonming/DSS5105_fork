@@ -1,4 +1,24 @@
-# Send the morning email from Outlook in one click
+# Send the morning email from Outlook
+
+Two ways, chosen by one setting (`outlook.clientId` in `frontend/config.js`):
+
+| | **Open in Outlook** (no setup, the default) | **Send with Outlook** (one-time Microsoft app registration) |
+|---|---|---|
+| What the GM does | Clicks **Open in Outlook**: a new Outlook window opens with To, Cc, subject and text filled in. Clicks **Send** there. | Clicks **Send with Outlook**. Done. |
+| Clicks | 2 | 1 (after signing in to Microsoft the first time) |
+| Setup | None. Set `web: 'office'` (work/school Microsoft 365) or `web: 'live'` (Outlook.com/Hotmail) | About 10 minutes, below |
+| Does ThreadPilot know it was sent? | No (it happens in Outlook), so the draft is not marked sent | Yes: "Sent 07:45 from … to …" |
+| On a phone | Opens the Outlook app (or the phone's mail app) with everything filled in | Same one click |
+
+## Open in Outlook (no setup)
+
+The window uses Outlook on the web's "new message" address (`/mail/deeplink/compose?to=…&cc=…&subject=…&body=…`). It
+is the address Outlook itself uses for "new message" links, but Microsoft does not document it as an API, so check it once
+before a demo. The GM must be signed in to Outlook on the web in that browser; if Outlook asks them to sign in first, it
+can open an empty message, and clicking **Open in Outlook** again fills it. If the browser blocks the window, the dialog
+shows an **Open Outlook** link instead. The text goes in as plain text, exactly as reviewed; the draft is saved first.
+
+## Send with Outlook (one click)
 
 **What the general manager sees.** Dashboard → **Generate email**. The draft opens already written from the 07:00 briefing,
 with yesterday's recipients already filled in. They read it, edit if they want, and press **Send with Outlook**. The email
@@ -7,7 +27,7 @@ and when, so reopening the draft says "Sent 07:45 from gm@… to …" and the bu
 
 The first send asks them to sign in to Microsoft once and allow "Send mail as you". After that, sending is one click.
 
-## How it works, and why it is safe
+## How Send with Outlook works, and why it is safe
 
 | Question | Answer |
 |---|---|
@@ -19,10 +39,8 @@ The first send asks them to sign in to Microsoft once and allow "Send mail as yo
 | What does the server store? | The draft (as before), the To/Cc lists, and for each send: time, sender address, draft version, count (`briefing_email_deliveries`, migration `0006`). |
 | What if something fails? | The dialog says so and says whether anything was sent. A send is recorded only after Outlook accepts it (HTTP 202). If Outlook returns a server error, the dialog says to check Sent Items before sending again, because Microsoft may have sent it anyway. |
 
-Without the setup below, the button reads **Open in Outlook** instead: it opens Outlook (or the phone's mail app) with the
-recipients, subject and text filled in, and the manager presses Send there. That needs no setup at all.
 
-## Set it up (about 10 minutes, once, by one person)
+## Set up Send with Outlook (about 10 minutes, once, by one person)
 
 ### 1. Register the app with Microsoft
 
@@ -86,7 +104,9 @@ others). Then open the Dashboard → **Generate email** → put your own address
 | "Need admin approval" on Microsoft's screen | A work or school directory that does not let users approve apps. Ask its IT admin to grant consent, or use a personal Outlook.com account. |
 | "This app is unverified" on Microsoft's screen | Normal for a student project; Microsoft shows it for apps without a verified publisher. Personal accounts can still accept. |
 | "Your Microsoft sign-in has expired" | Press Send again. Browsers limit how long a web page may keep a Microsoft sign-in (about a day), so the first send of a day may flash Microsoft's window; if you are still signed in to Microsoft it closes by itself. |
-| The button says **Open in Outlook** | `clientId` in `frontend/config.js` is empty or not a GUID. |
+| The button says **Open in Outlook** | `clientId` in `frontend/config.js` is empty or not a GUID (that is the no-setup mode). |
+| Open in Outlook shows a sign-in page, then an empty message | Outlook drops the filled-in fields when it has to sign you in first. Stay signed in to Outlook on the web and click **Open in Outlook** again. |
+| Open in Outlook opens the wrong Outlook | Set `web: 'live'` for Outlook.com/Hotmail, `web: 'office'` for work or school accounts. |
 
 ## Tested
 
@@ -94,9 +114,12 @@ others). Then open the Dashboard → **Generate email** → put your own address
   sign-in starts from the click before anything else (otherwise browsers block the window); exactly the reviewed text goes
   to To and Cc; a send is recorded only after Outlook accepts it; the second send needs no sign-in; blocked, closed and
   lost sign-in windows, refused permission and Outlook errors each say what happened; the dialog fits a 320 px phone with
-  Send on screen.
+  Send on screen. Without a registration: the Outlook window opens from the click with To, Cc, subject and text in its
+  address (both Outlook addresses), cannot reach back into ThreadPilot, and is not recorded as sent; a blocked window
+  leaves a link; a phone opens the mail app instead.
 * `backend/tests/test_dashboard.py`: recipients are validated and carried to the next day's draft, sends are recorded and
   counted, the migration upgrades an existing database.
 * Checked by hand against Microsoft's real sign-in library (MSAL 5.22.0, `frontend/vendor/`, MIT licence): the sign-in
   address asks for `Mail.Send openid profile offline_access` with PKCE (`S256`) and the right redirect URI. A real send
-  needs the app registration above and has not been run from this repository.
+  needs the app registration above and has not been run from this repository; nor has a real Outlook window (this
+  workspace cannot reach Outlook), so try **Open in Outlook** once with your own account.

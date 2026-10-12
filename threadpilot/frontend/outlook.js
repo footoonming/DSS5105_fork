@@ -5,7 +5,8 @@
  * signed-in user. It cannot read, delete or move mail. Sent mail lands in the user's Sent Items like any other email.
  *
  * Set up once: register an app in Microsoft Entra and put its client ID in config.js (docs/outlook_setup.md).
- * Without a client ID, configured() is false and the email dialog falls back to opening the mail app (mailto).
+ * Without a client ID, configured() is false and the email dialog opens Outlook on the web in a new window instead, with
+ * everything filled in (webCompose; on phones, the Outlook app through mailto), and the manager presses Send there.
  */
 (function () {
   const SCOPES = ['Mail.Send'];
@@ -136,6 +137,17 @@
     if (found) await app.clearCache({account: found});
   }
 
+  /** Outlook on the web's "new message" address with everything filled in (no app registration needed). The manager
+   *  presses Send in Outlook. web: 'office' for work or school Microsoft 365 mailboxes, 'live' for Outlook.com/Hotmail. */
+  function webCompose({to, cc = [], subject, body}) {
+    const base = settings().web === 'live' ? 'https://outlook.live.com/mail/0/deeplink/compose'
+      : 'https://outlook.office.com/mail/deeplink/compose';
+    const join = list => list.map(encodeURIComponent).join(',');
+    const query = ['to=' + join(to), cc.length ? 'cc=' + join(cc) : '', 'subject=' + encodeURIComponent(subject),
+      'body=' + encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))].filter(Boolean).join('&');
+    return base + '?' + query;
+  }
+
   /** mailto: link for the fallback: opens Outlook (or the default mail app) with everything filled in. */
   function mailto({to, cc = [], subject, body}) {
     const join = list => list.map(encodeURIComponent).join(',');
@@ -144,5 +156,5 @@
     return 'mailto:' + join(to) + '?' + query;
   }
 
-  window.ThreadPilotOutlook = {configured, signIn, send, account, forget, mailto, OutlookError};
+  window.ThreadPilotOutlook = {configured, signIn, send, account, forget, webCompose, mailto, OutlookError};
 })();

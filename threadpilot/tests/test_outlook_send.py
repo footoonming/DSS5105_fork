@@ -125,13 +125,16 @@ class Backend:
                              body=json.dumps({"error": {"code": "ErrorAccessDenied", "message": "Access is denied."}}))
 
 
-def open_page(browser, frontend, backend, client_id=CLIENT_ID, width=1280):
-    page = browser.new_page(viewport={"width": width, "height": 900})
+def open_page(browser, frontend, backend, client_id=CLIENT_ID, width=1280, web="office", phone=False, init=""):
+    page = browser.new_page(viewport={"width": width, "height": 900}, has_touch=phone, is_mobile=phone)
     page.errors = []
     page.on("pageerror", lambda e: page.errors.append(str(e)))
     page.on("dialog", lambda d: d.accept())       # "already sent, send again?"
-    page.add_init_script(LOG_FETCH)
+    page.add_init_script(LOG_FETCH + init)
     config = (ROOT / "frontend/config.js").read_text(encoding="utf-8").replace("clientId: ''", f"clientId: '{client_id}'")
+    config = config.replace("web: 'office'", f"web: '{web}'")
+    # Outlook on the web, for the window opened without an app registration (popups need the context's routes).
+    page.context.route("https://outlook.*.com/**", lambda r: r.fulfill(status=200, content_type="text/html", body="<p>Outlook (stand-in)</p>"))
     page.route("**/config.js", lambda r: r.fulfill(status=200, content_type="text/javascript", body=config))
     page.route("**/vendor/msal-browser.min.js", lambda r: r.fulfill(status=200, content_type="text/javascript", body=FAKE_MSAL))
     page.route("**/api/**", backend.api)
@@ -253,17 +256,62 @@ def test_failures_say_nothing_was_sent_and_a_lost_sign_in_window_can_be_retried(
     assert page.errors == []
 
 
-def test_without_an_app_registration_it_opens_the_mail_app_instead(browser, frontend):
+def compose_fields(url):
+    from urllib.parse import parse_qs, urlparse
+    parsed = urlparse(url)
+    return parsed.netloc + parsed.path, {k: v[0] for k, v in parse_qs(parsed.query).items()}
+
+
+@pytest.mark.parametrize("web, address", [("office", "outlook.office.com/mail/deeplink/compose"),
+                                          ("live", "outlook.live.com/mail/0/deeplink/compose")])
+def test_without_an_app_registration_it_opens_an_outlook_window_filled_in(browser, frontend, web, address):
     backend = Backend()
     backend.draft["to"] = ["gm@factory.com"]
-    page = open_page(browser, frontend, backend, client_id="")
+    page = open_page(browser, frontend, backend, client_id="", web=web)
     dialog = page.locator("#briefing-email-dialog")
     assert dialog.locator(".email-send").inner_text() == "Open in Outlook"
-    assert "press Send there" in dialog.locator(".email-account").inner_text()
+    assert "new Outlook window" in dialog.locator(".email-account").inner_text()
+    dialog.locator("[name=cc]").fill("boss@factory.com")
+    dialog.locator("[name=body]").fill("Checked by the GM.\nSecond line & more")
+    with page.expect_popup() as opened:
+        dialog.locator(".email-send").click()
+    popup = opened.value
+    popup.wait_for_url("https://outlook.*.com/**")
+    where, fields = compose_fields(popup.url)
+    assert where == address
+    assert fields == {"to": "gm@factory.com", "cc": "boss@factory.com", "subject": f"ThreadPilot morning summary | {DAY}",
+                      "body": "Checked by the GM.\r\nSecond line & more"}
+    assert popup.evaluate("window.opener") is None              # Outlook's page gets no handle back to ThreadPilot
+    assert status(page) == "Opened in Outlook in a new window. Check it and press Send there."
+    assert backend.saves[-1]["cc"] == ["boss@factory.com"]      # saved before opening, so the draft matches
+    assert backend.records == []                                 # ThreadPilot cannot see the send, so it does not claim one
+    assert not page.evaluate("'msal' in window")                 # the Microsoft library is never loaded without a registration
+    assert page.errors == []
+
+
+def test_a_blocked_outlook_window_leaves_a_link_to_open_it(browser, frontend):
+    backend = Backend()
+    backend.draft["to"] = ["gm@factory.com"]
+    page = open_page(browser, frontend, backend, client_id="", init="window.open = () => null;")
+    page.locator(".email-send").click()
+    assert status(page).startswith("The browser blocked the Outlook window.")
+    link = page.locator(".email-status a")
+    assert link.inner_text() == "Open Outlook" and link.get_attribute("target") == "_blank"
+    assert compose_fields(link.get_attribute("href"))[1]["to"] == "gm@factory.com"
+    assert page.errors == []
+
+
+def test_on_a_phone_it_opens_the_outlook_app_instead(browser, frontend):
+    backend = Backend()
+    backend.draft["to"] = ["gm@factory.com"]
+    page = open_page(browser, frontend, backend, client_id="", width=390, phone=True,
+                     init="window.__opened = []; window.open = (...a) => { window.__opened.push(a); return null; };")
+    assert "Outlook app" in page.locator(".email-account").inner_text()
+    page.locator(".email-send").click()
+    assert status(page) == "Opened in your mail app. Check it and press Send there."
+    assert page.evaluate("window.__opened") == []               # no browser window on a phone
     link = page.evaluate("ThreadPilotOutlook.mailto({to:['a@x.com','b@x.com'],cc:['c@x.com'],subject:'Morning | 12 Oct',body:'Line 1\\nLine 2 & more'})")
     assert link == "mailto:a%40x.com,b%40x.com?cc=c%40x.com&subject=Morning%20%7C%2012%20Oct&body=Line%201%0D%0ALine%202%20%26%20more"
-    assert not page.evaluate("'msal' in window")        # the Microsoft library is never loaded without a registration
-    assert page.errors == []
 
 
 @pytest.mark.parametrize("width", [320, 360, 390])

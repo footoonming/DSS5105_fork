@@ -85,9 +85,9 @@ async function openBriefingEmail(day, button){
  button.disabled=true;
  try{
   let draft=await dashboardRequest('dashboard/briefings/'+encodeURIComponent(day)+'/email',{method:'POST'});
-  const outlook=window.ThreadPilotOutlook,direct=!!outlook?.configured();
+  const outlook=window.ThreadPilotOutlook,direct=!!outlook?.configured(),onPhone=matchMedia('(pointer:coarse)').matches&&innerWidth<820;
   const dialog=document.createElement('dialog');dialog.id='briefing-email-dialog';dialog.className='briefing-email-dialog';
-  dialog.innerHTML=`<div class="section-heading"><h2>Morning summary email</h2><button type="button" class="email-close" aria-label="Close email">Close</button></div><p class="muted">Draft · ${esc(day)} · Review before sending</p><form novalidate><label>To<input name="to" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000" placeholder="name@company.com, another@company.com"></label><label>Cc <span class="muted">(optional)</span><input name="cc" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000"></label><label>Subject<input name="subject" required maxlength="240"></label><label>Message<textarea name="body" required maxlength="12000"></textarea></label><div class="email-footer"><p class="email-status" role="status" aria-live="polite"></p><div class="actions"><button type="button" class="primary email-send">${direct?'Send with Outlook':'Open in Outlook'}</button><button type="submit" class="email-save">Save draft</button><button type="button" class="email-copy">Copy email</button><button type="button" class="email-download" title="Download as an .eml file">Download<span class="wide-only"> .eml</span></button></div><p class="email-account muted">${direct?'':'Opens the email in Outlook or your mail app with everything filled in; press Send there.'}</p></div></form>`;
+  dialog.innerHTML=`<div class="section-heading"><h2>Morning summary email</h2><button type="button" class="email-close" aria-label="Close email">Close</button></div><p class="muted">Draft · ${esc(day)} · Review before sending</p><form novalidate><label>To<input name="to" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000" placeholder="name@company.com, another@company.com"></label><label>Cc <span class="muted">(optional)</span><input name="cc" inputmode="email" autocomplete="off" spellcheck="false" maxlength="2000"></label><label>Subject<input name="subject" required maxlength="240"></label><label>Message<textarea name="body" required maxlength="12000"></textarea></label><div class="email-footer"><p class="email-status" role="status" aria-live="polite"></p><div class="actions"><button type="button" class="primary email-send">${direct?'Send with Outlook':'Open in Outlook'}</button><button type="submit" class="email-save">Save draft</button><button type="button" class="email-copy">Copy email</button><button type="button" class="email-download" title="Download as an .eml file">Download<span class="wide-only"> .eml</span></button></div><p class="email-account muted">${direct?'':onPhone?'Opens the email in the Outlook app (or your mail app) with everything filled in; press Send there.':'Opens a new Outlook window with everything filled in; press Send there. Sign in to Outlook on this browser first.'}</p></div></form>`;
   const form=dialog.querySelector('form'),status=dialog.querySelector('.email-status'),sendButton=dialog.querySelector('.email-send'),accountLine=dialog.querySelector('.email-account');
   form.elements.subject.value=draft.subject;form.elements.body.value=draft.body;
   form.elements.to.value=(draft.to||[]).join(', ');form.elements.cc.value=(draft.cc||[]).join(', ');
@@ -124,7 +124,15 @@ async function openBriefingEmail(day, button){
   let attempt=0,signingIn=false;
   sendButton.onclick=async()=>{
    if(busy&&!signingIn)return;const people=recipients(true);if(!people)return;
-   if(!direct){if(!await persist())return;location.href=outlook.mailto({...people,subject:draft.subject,body:draft.body});status.textContent='Opened in your mail app. Press Send there.';return}
+   if(!direct){
+    // Open the window now, while the click still allows it, and point it at Outlook once the draft is saved.
+    const win=onPhone?null:window.open('','threadpilot-outlook','popup,width=1000,height=780');
+    if(!await persist()){if(win)win.close();return}
+    const message={...people,subject:draft.subject,body:draft.body};
+    if(onPhone){location.href=outlook.mailto(message);status.textContent='Opened in your mail app. Check it and press Send there.';return}
+    if(win){win.opener=null;win.location.href=outlook.webCompose(message);win.focus();status.textContent='Opened in Outlook in a new window. Check it and press Send there.';return}
+    status.textContent='The browser blocked the Outlook window. ';
+    const a=document.createElement('a');a.href=outlook.webCompose(message);a.target='_blank';a.rel='noopener';a.textContent='Open Outlook';status.append(a);return}
    if(draft.sent&&!signingIn&&!confirm('This summary was already sent. Send it again?'))return;
    const mine=++attempt;
    // Send stays pressable while Microsoft's window is open: if it was closed or lost, pressing again starts over.
