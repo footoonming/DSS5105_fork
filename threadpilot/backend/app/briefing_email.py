@@ -73,18 +73,41 @@ def public(row, delivery=None, fallback_to=()):
     return out
 
 
+class DeliveryTableMissing(RuntimeError):
+    """Migration 0006 has not been run on this database yet (on CloudBase migrations are run by hand)."""
+
+
+def _deliveries(db, work):
+    """Run work(db) against briefing_email_deliveries inside a savepoint. If the table does not exist yet, raise
+    DeliveryTableMissing and leave the surrounding transaction (the draft itself) untouched."""
+    try:
+        with db.begin_nested():
+            return work(db)
+    except sa.exc.DBAPIError as error:
+        if sa.inspect(db).has_table(deliveries.name):
+            raise
+        raise DeliveryTableMissing('Run database migration 0006 (briefing_email_deliveries).') from error
+
+
 def _read(db, day):
     row = db.execute(sa.select(drafts).where(drafts.c.briefing_day == day)).mappings().first()
     if row is None:
         return None
-    delivery = db.execute(sa.select(deliveries).where(deliveries.c.briefing_day == day)).mappings().first()
-    fallback = ()
-    if delivery is None:
-        # Yesterday's list is today's best guess, so the manager types recipients once, not every morning.
-        last = db.execute(sa.select(deliveries.c.to_addresses).where(deliveries.c.to_addresses != '')
-                          .order_by(deliveries.c.briefing_day.desc()).limit(1)).scalar()
-        fallback = split(last) if last else default_recipients()
-    return public(row, delivery, fallback)
+
+    def lookup(db):
+        delivery = db.execute(sa.select(deliveries).where(deliveries.c.briefing_day == day)).mappings().first()
+        last = None
+        if delivery is None:
+            # Yesterday's list is today's best guess, so the manager types recipients once, not every morning.
+            last = db.execute(sa.select(deliveries.c.to_addresses).where(deliveries.c.to_addresses != '')
+                              .order_by(deliveries.c.briefing_day.desc()).limit(1)).scalar()
+        return delivery, last
+
+    try:
+        delivery, last = _deliveries(db, lookup)
+    except DeliveryTableMissing:
+        delivery, last = None, None      # the draft still opens; recipients start from BRIEFING_EMAIL_TO
+    return public(row, delivery, () if delivery else (split(last) if last else default_recipients()))
 
 
 def _store(db, day, values):
@@ -139,17 +162,24 @@ def save(database, day, subject, body, version, to=None, cc=None):
                 changes['to_addresses'] = ','.join(to)
             if cc is not None:
                 changes['cc_addresses'] = ','.join(cc)
-            _store(db, day, changes)
+            try:
+                _deliveries(db, lambda db: _store(db, day, changes))
+            except DeliveryTableMissing:
+                pass                          # the text is saved; recipients are kept once the migration has run
         return _read(db, day)
 
 
 def record_sent(database, day, version, to, cc, sent_by):
-    """Record that the manager's mailbox accepted the email. Returns None if there is no draft for that day."""
+    """Record that the manager's mailbox accepted the email. Returns None if there is no draft for that day.
+    Raises DeliveryTableMissing if migration 0006 has not been run."""
     with database.engine.begin() as db:
         if db.execute(sa.select(drafts.c.version).where(drafts.c.briefing_day == day)).scalar() is None:
             return None
-        count = db.execute(sa.select(deliveries.c.send_count).where(deliveries.c.briefing_day == day)).scalar() or 0
-        _store(db, day, {'to_addresses': ','.join(to), 'cc_addresses': ','.join(cc),
-                         'sent_at': datetime.now(LOCAL).isoformat(), 'sent_by': sent_by, 'sent_version': version,
-                         'send_count': count + 1})
+
+        def store(db):
+            count = db.execute(sa.select(deliveries.c.send_count).where(deliveries.c.briefing_day == day)).scalar() or 0
+            _store(db, day, {'to_addresses': ','.join(to), 'cc_addresses': ','.join(cc),
+                             'sent_at': datetime.now(LOCAL).isoformat(), 'sent_by': sent_by, 'sent_version': version,
+                             'send_count': count + 1})
+        _deliveries(db, store)
         return _read(db, day)

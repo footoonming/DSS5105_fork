@@ -118,7 +118,8 @@ The runner first sends one "Hello" and stops before grading anything if the serv
 so a set-up mistake cannot use up the first pass. A rate limit (HTTP 429), provider outage (502) or timeout (504) means the model
 never answered: that turn is retried with backoff and the number of retries is printed and saved, not graded. Every other answer,
 including an error the system returns itself, is graded as it is. If the server sets `API_ACCESS_TOKEN`, export the same value as
-`THREADPILOT_TOKEN` first.
+`THREADPILOT_TOKEN` first. Put `CHAT_REQUESTS_PER_MINUTE=0` in `.env` for the run, so the per-device limit on model calls
+(a cost guard for the public link) does not slow it down.
 
 Run it **once** and report that number as first-pass accuracy. Fixing things and re-running gives a different, tuned number. The earlier live verification
 (`docs/live_model_verification.md`) passed 36 of 45 turns on its first full run (80%) and reported 45 after re-running the failures: quote 80%.

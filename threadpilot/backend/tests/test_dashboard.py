@@ -196,3 +196,24 @@ def test_the_delivery_migration_upgrades_an_existing_database(tmp_path):
         with Operations.context(MigrationContext.configure(conn)):
             m.downgrade()
     assert 'briefing_email_deliveries' not in sa.inspect(engine).get_table_names()
+
+
+def test_the_email_still_works_on_a_database_without_migration_0006(business_database, monkeypatch):
+    """On CloudBase, migrations are run by hand. Until 0006 is, drafts open, edit and save as before; only recording a
+    send fails, with a message that says which migration to run."""
+    from app.briefing_email import deliveries
+    service, data = setup(business_database)
+    deliveries.drop(business_database.engine)
+    service.generate_due(data, now())
+    for k, v in {'OPENAI_API_KEY':'', 'API_ACCESS_TOKEN':'', 'BACKGROUND_TASKS_ENABLED':'false',
+                 'MORNING_SCHEDULER_ENABLED':'false', 'SERVE_FRONTEND':'false',
+                 'BRIEFING_EMAIL_TO':'gm@factory.com'}.items(): monkeypatch.setenv(k, v)
+    url = '/api/dashboard/briefings/2026-10-10/email'
+    with TestClient(create_app()) as client:
+        draft = client.post(url)
+        assert draft.status_code == 200 and draft.json()['to'] == ['gm@factory.com'] and draft.json()['sent'] is None
+        saved = client.put(url, json={'subject':'S','body':'Edited','version':1,'to':['a@b.co']})
+        assert saved.status_code == 200 and saved.json()['body'] == 'Edited' and saved.json()['version'] == 2
+        sent = client.post(url+'/sent', json={'version':2,'to':['a@b.co']})
+        assert sent.status_code == 503 and '0006' in sent.text
+        assert client.post(url).json()['body'] == 'Edited'

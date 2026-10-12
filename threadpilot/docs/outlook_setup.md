@@ -63,7 +63,7 @@ Then:
 
    | Where the app is opened | Redirect URI to add |
    |---|---|
-   | The team's CloudBase site | `https://dss5105-track1-i7gxvcy5k7ef5ac9b-1500904749.ap-singapore.app.tcloudbase.com/auth-redirect.html` |
+   | The team's CloudBase website (static website hosting) | `https://<its domain>/auth-redirect.html`: the address in the browser bar when the app is open, without `/#/dashboard`. Not the `/api` backend address |
    | GitHub Pages (if used) | `https://jingweiluo557.github.io/<path to the frontend>/auth-redirect.html` |
    | Your laptop (Docker or `scripts.serve`) | `http://localhost:8000/auth-redirect.html` (open the app at `localhost`, not `127.0.0.1`) |
 
@@ -91,8 +91,7 @@ Optional default recipients for the very first draft (after that, each draft reu
 
 ### 3. Deploy and try it
 
-Redeploy (CloudBase and/or Pages, as for any frontend change; on CloudBase the database migration `0006` runs with the
-others). Then open the Dashboard → **Generate email** → put your own address in To → **Send with Outlook** → sign in →
+Redeploy the website (and the backend, for the email changes; see [CLOUDBASE_UPDATE_20261012.md](CLOUDBASE_UPDATE_20261012.md)). Then open the Dashboard → **Generate email** → put your own address in To → **Send with Outlook** → sign in →
 **Accept** on Microsoft's "Permissions requested" screen. The email arrives in your inbox and in your Sent Items.
 
 ## If something goes wrong

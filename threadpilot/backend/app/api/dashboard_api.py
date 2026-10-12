@@ -86,8 +86,11 @@ def save_email(day: date, body: EmailUpdate, request: Request, response: Respons
 @router.post('/dashboard/briefings/{day}/email/sent')
 def email_sent(day: date, body: EmailSent, request: Request, response: Response):
     response.headers['Cache-Control'] = 'no-store'
-    result = briefing_email.record_sent(request.app.state.database, day.isoformat(), body.version, body.to, body.cc,
-                                        body.sent_by)
+    try:
+        result = briefing_email.record_sent(request.app.state.database, day.isoformat(), body.version, body.to, body.cc,
+                                            body.sent_by)
+    except briefing_email.DeliveryTableMissing:
+        raise HTTPException(503, 'The email was sent, but this server cannot record sends until database migration 0006 is run.')
     if result is None:
         raise HTTPException(404, 'No email draft exists for this date.')
     logging.getLogger(__name__).info('Morning email for %s sent from %s to %d recipient(s)', day.isoformat(), body.sent_by or 'unknown',
