@@ -75,6 +75,7 @@ Be ready for these three questions:
 | Invented-number rate and bait questions | 3 of 163 numbers untraced on the first run, 1 a real error (fixed); bait questions 10 of 16 first pass | [evaluation.md](evaluation.md) |
 | Calibration of risk levels and feasibility ranges | Risk levels calibrated (AUC 0.98); feasibility range held 69%, now widened by 3 working days (94% held out) | [calibration.md](calibration.md) |
 | What finding problems through the briefing is worth (paired simulation) | About 30 working days of lateness avoided per two months (95% 18 to 43); not time saved | [business_value.md](business_value.md) |
+| Business case in money (estimate) | About 62 planner hours a month freed (S$18.4k a year) plus S$13.1k of late penalties avoided, minus S$1.9k to run: about S$29.6k a year for one factory; a full-time assistant would cost S$49.1k | [business_case.md](business_case.md) |
 
 ## Ready for a public link
 

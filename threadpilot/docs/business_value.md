@@ -11,6 +11,8 @@ working days anyway, to about 46 days if they would take 10.
 using the system; nobody has. It is the next best thing that can be measured without one: the same simulated factory, the same
 disruptions and the same random draws, run with the problems found three ways.
 
+In money, with the planner's time added: [business_case.md](business_case.md).
+
 ## Why a paired simulation
 
 Comparing two different simulated futures would mix the co-pilot's effect with luck (one future simply had worse disruptions).
