@@ -1355,6 +1355,14 @@
             },
             "type": "array",
             "title": "Queries"
+          },
+          "ungrounded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ungrounded",
+            "default": []
           }
         },
         "type": "object",
@@ -1548,6 +1556,13 @@
               }
             ],
             "title": "Usage"
+          },
+          "ungrounded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ungrounded"
           }
         },
         "additionalProperties": false,

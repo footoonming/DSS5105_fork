@@ -61,6 +61,8 @@ def ask_all(questions: list[dict], url: str = URL, send=post, sleep=time.sleep) 
             session = (reply.get("state") or {}).get("session_id", session)
             sleep(PAUSE)
         answers[q["id"]] = reply.get("answer", "")
+        if reply.get("ungrounded"):
+            log.setdefault("ungrounded", {})[q["id"]] = reply["ungrounded"]
     return answers, log
 
 
@@ -88,6 +90,7 @@ def main() -> int:
     results = score(questions, answers)
     print(markdown(results, "First-pass accuracy" if "--first-pass" in sys.argv else "Accuracy (not first-pass)"))
     print(f"\nTransport retries (rate limit / provider down / timeout, model never answered): {log['transport_retries']}")
+    print(f"Answers with a number no tool returned (should be 0): {len(log.get('ungrounded', {}))}", log.get("ungrounded", ""))
     for r in results:
         if not r["passed"]:
             print(f"\nFAIL {r['id']} [{r['category']}] {r['question']}\n     {r['answer'][:300]}")
@@ -95,7 +98,7 @@ def main() -> int:
         name = sys.argv[sys.argv.index("--save") + 1]
         (Path(__file__).parent / "results" / f"{name}.json").write_text(
             json.dumps({"system": "backend (OpenAI model + MySQL)", "first_pass": "--first-pass" in sys.argv,
-                        "transport_retries": log["transport_retries"], "summary": summary(results), "results": results}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+                        "transport_retries": log["transport_retries"], "ungrounded": log.get("ungrounded", {}), "summary": summary(results), "results": results}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return 0
 
 

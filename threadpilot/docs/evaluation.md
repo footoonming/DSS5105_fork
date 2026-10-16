@@ -90,6 +90,24 @@ hold, answered as a neighbouring question; the worst reported 31 March's output 
 these are the dashboard chat's answers. On the live backend the words are also assembled by code; the place where a model writes the answer
 is the read-only SQL agent, which is not wired to the chat page and has not been measured.
 
+## The live backend: the model routes, code writes
+
+In the live chat the OpenAI model fills in a form (which tool, which order, which stage, which quantity) and nothing else;
+code runs the tool, computes every number and writes the answer. Four guards keep it that way, each with a test in
+[`backend/tests/test_model_never_writes_answers.py`](../backend/tests/test_model_never_writes_answers.py):
+
+| Guard | What it stops | Where |
+|---|---|---|
+| Only the classifier (and the separate SQL assistant) may import a model library | Answer-writing code asking a model for words | a structural test over `backend/app` |
+| A number the model "extracted" must be one the user typed (digits or words) | Computing with an invented quantity or output figure | `route()` in `workflow_engine.py` |
+| Draft and note text, recipient and tone must be the user's own words; the model's clarifying question is never shown | Model-written sentences reaching the manager | `execution()` and `route()` |
+| A tripwire on every answer: each number must come from a tool, the evidence rows or the user | Any regression that lets model content through | `response()`, returned as `ungrounded`, logged, and counted by `evaluation.run_backend` |
+
+The tests drive the real engine with a stand-in model that invents a quantity, an output figure, a note, a penalty
+clause, a recipient, an order ID and a clarifying "fact"; none of them reaches the answer. Across every recorded
+conversation in the test suite the tripwire finds nothing. The SQL assistant (`/api/ai/ask`) is the one route where the
+model words the answer from its query results; there a number not in the results is flagged in the answer itself.
+
 ## Beyond accuracy: is it calibrated, when should it interrupt, what is it worth?
 
 Accuracy on questions is one kind of evidence. Three studies measure the rest, each with a script, saved results and a test that keeps

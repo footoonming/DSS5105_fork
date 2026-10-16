@@ -165,6 +165,7 @@ def test_workbook_multiturn_scenario(scenario: str, tmp_path: Path, storage: str
             names = [call.name for call in response.tool_calls]
             assert (tool in names) if tool else not names, (row, names)
             assert phrase in response.answer, (row, response.answer)
+            assert not response.ungrounded, (row, response.ungrounded, response.answer)
             writes = [c for c in response.tool_calls if c.requires_confirmation]
             assert not writes or engine.confirmation_word(text)
             if response.evidence:
@@ -225,12 +226,12 @@ def test_write_confirmation_revision_idempotency_and_restart(tmp_path: Path) -> 
     async def run() -> None:
         """场景 3.2：预览修订后不能使用旧 token 保存。"""
         engine = make_engine(tmp_path)
-        response = await engine.chat(ChatRequest(message='Add internal note to ORD-005'), FixedClassifier('execution.note', order_ids=['ORD-005'], text='Escalated today.'))
+        response = await engine.chat(ChatRequest(message='Add internal note to ORD-005: Escalated today.'), FixedClassifier('execution.note', order_ids=['ORD-005'], text='Escalated today.'))
         old = response.confirmation_id
         session = response.state.session_id
         assert response.confirmation_required
         assert engine.store.action_result(old, session) is None
-        revised = await engine.chat(ChatRequest(message='Revise note on ORD-005', session_id=session), FixedClassifier('execution.note', order_ids=['ORD-005'], text='Escalated to manager today.'))
+        revised = await engine.chat(ChatRequest(message='Revise note on ORD-005: Escalated to manager today.', session_id=session), FixedClassifier('execution.note', order_ids=['ORD-005'], text='Escalated to manager today.'))
         failed = await engine.chat(ChatRequest(message='Save it', session_id=session, confirmation_id=old), FixedClassifier('unknown'))
         assert failed.needs_clarification and not any(c.requires_confirmation for c in failed.tool_calls)
         engine = make_engine(tmp_path)
@@ -281,7 +282,7 @@ def test_capacity_baseline_and_no_sender(tmp_path: Path) -> None:
     async def run() -> None:
         """场景 3.1：确认后没有连接器也必须保持未发送状态。"""
         engine.sender = None
-        response = await engine.chat(ChatRequest(message='Draft for ORD-005'), FixedClassifier('execution.chase', order_ids=['ORD-005'], recipient='Maya', action='draft'))
+        response = await engine.chat(ChatRequest(message='Draft for ORD-005 to Maya'), FixedClassifier('execution.chase', order_ids=['ORD-005'], recipient='Maya', action='draft'))
         session = response.state.session_id
         await engine.chat(ChatRequest(message='Send it', session_id=session), FixedClassifier('execution.chase', action='send'))
         response = await engine.chat(ChatRequest(message='Send now', session_id=session), FixedClassifier('unknown'))
@@ -338,7 +339,7 @@ def test_confirmation_rejects_changed_source_and_expiry(tmp_path: Path) -> None:
     async def run() -> None:
         """场景 3.2：验证两种失效都没有落地业务写操作。"""
         engine = make_engine(tmp_path)
-        response = await engine.chat(ChatRequest(message='Note on ORD-005'), FixedClassifier('execution.note', text='Escalated today.'))
+        response = await engine.chat(ChatRequest(message='Note on ORD-005: Escalated today.'), FixedClassifier('execution.note', text='Escalated today.'))
         session = response.state.session_id
         state = engine.store.load(session)
         state.pending_action.source_snapshot['current_stage'] = 'PACKING'
@@ -346,7 +347,7 @@ def test_confirmation_rejects_changed_source_and_expiry(tmp_path: Path) -> None:
         response = await engine.chat(ChatRequest(message='Save it', session_id=session), FixedClassifier('unknown'))
         assert 'record changed' in response.answer
         assert not response.confirmation_required
-        await engine.chat(ChatRequest(message='Note on ORD-005', session_id=session), FixedClassifier('execution.note', text='Escalated today.'))
+        await engine.chat(ChatRequest(message='Note on ORD-005: Escalated today.', session_id=session), FixedClassifier('execution.note', text='Escalated today.'))
         engine.clock = lambda: NOW + timedelta(minutes=16)
         response = await engine.chat(ChatRequest(message='Save it', session_id=session), FixedClassifier('unknown'))
         assert 'expired' in response.answer
@@ -374,7 +375,7 @@ def test_unknown_delivery_retries_same_key(tmp_path: Path) -> None:
         engine = make_engine(tmp_path)
         sender = UncertainSender()
         engine.sender = sender
-        response = await engine.chat(ChatRequest(message='Draft ORD-005'), FixedClassifier('execution.chase', recipient='Maya', action='draft'))
+        response = await engine.chat(ChatRequest(message='Draft ORD-005 to Maya'), FixedClassifier('execution.chase', recipient='Maya', action='draft'))
         session = response.state.session_id
         preview = await engine.chat(ChatRequest(message='Send it', session_id=session), FixedClassifier('execution.chase', action='send'))
         request = ChatRequest(message='Send now', session_id=session, confirmation_id=preview.confirmation_id)

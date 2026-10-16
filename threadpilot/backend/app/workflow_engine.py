@@ -1,6 +1,7 @@
 """场景 1.1–3.3：模型识别、确定性路由、状态与确认闸门。"""
 import asyncio
 import json
+import logging
 import re
 from contextlib import nullcontext
 from collections.abc import Callable
@@ -9,8 +10,13 @@ from typing import Any, Literal, Protocol
 
 from .schemas import (ChatRequest, ChatResponse, Classification, DialogState, Evidence,
                       Intent, PendingAction, PendingClarification, Slots, ToolCall)
+from .grounding import flatten, own_words, said, ungrounded
 from .workflow_store import Sender, WorkflowStore
 from .workflow_tools import DataTools, explain_no_data, resolve_date, resolve_datetime
+
+
+# Numbers the code itself writes into answers (thresholds, windows, limits), so the tripwire does not flag them.
+CODE_CONSTANTS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '12', '14', '15', '21', '30', '60', '100'}  # 9: "for example Friday at 9 a.m."
 
 
 class Classifier(Protocol):
@@ -24,6 +30,7 @@ class WorkflowEngine:
         """场景 1.1–3.3：共享工具、持久化和显式业务时钟；串行保护本地状态。"""
         self.tools, self.store, self.clock, self.sender = tools, store, clock, sender
         self.lock = asyncio.Lock()
+        self.turn_message = ''      # the user's message for the turn in progress (turns run one at a time, under the lock)
 
     async def chat(self, request: ChatRequest, classifier: Classifier) -> ChatResponse:
         """场景 1.1–3.3：原子处理一个本地会话轮次，客户端不能提交状态或工具。"""
@@ -34,6 +41,7 @@ class WorkflowEngine:
     async def _chat(self, request: ChatRequest, classifier: Classifier) -> ChatResponse:
         state = self.store.load(request.session_id) if request.session_id else DialogState()
         now = self.clock()
+        self.turn_message = request.message
         if request.selected_order_id and not state.active_order and not state.comparison_orders:
             state.active_order = self.tools.refresh_order(request.selected_order_id).record['order_id']
         confirmed = self.confirmation_word(request.message)
@@ -64,13 +72,25 @@ class WorkflowEngine:
             if len(evidence) > 12:
                 answer += f'. All {len(evidence)} source rows are included in the evidence field.'
         answer += f'\nAs of {now.isoformat()}; {getattr(self.tools, "freshness", "refreshed CSV test fixture")}.'
-        return ChatResponse(answer=answer, intent=result.intent, slots=state.slots,
+        # Tripwire: every number shown must come from a tool, the evidence rows or the user. The model never writes the
+        # answer, so this should always be empty; if code ever lets model text through, it shows up here.
+        sources = flatten(self.said(state), [c.model_dump() for c in calls], [e.model_dump() for e in evidence],
+                          state.draft, state.pending_action.payload if state.pending_action else None,
+                          state.pending_action.id if state.pending_action else None, now.isoformat(), getattr(self.tools, 'freshness', ''))
+        missing = ungrounded(answer, sources, CODE_CONSTANTS)
+        if missing:
+            logging.getLogger(__name__).warning('Ungrounded numbers in answer for intent %s: %s', result.intent, missing)
+        return ChatResponse(answer=answer, intent=result.intent, slots=state.slots, ungrounded=missing,
                             confidence=result.confidence, needs_clarification=bool(question), clarification_question=question,
                             confirmation_required=state.pending_action is not None,
                             confirmation_id=state.pending_action.id if state.pending_action else None,
                             state=state, tool_calls=calls, evidence=evidence,
                             order_ids=state.last_order_ids[:10], selected_order_id=state.active_order,
                             sources=list(dict.fromkeys(e.source for e in evidence)), business_date=now.date().isoformat())
+
+    def said(self, state: DialogState) -> list[str]:
+        """Everything the user has typed in this conversation, this turn included."""
+        return [h['content'] for h in state.history if h.get('role') == 'user'] + [self.turn_message]
 
     def ask(self, question: str, state: DialogState, result: Classification, now: datetime,
             calls: list[ToolCall], evidence: list[Evidence], candidates: list[str] | None = None) -> ChatResponse:
@@ -92,6 +112,11 @@ class WorkflowEngine:
             # Model guesses are not entity resolution. Only the user's explicit IDs
             # (or previously server-resolved slots) may select an order.
             fresh.pop('order_ids')
+        # A number the model says it "extracted" but the user never typed is dropped: the server then asks for it
+        # instead of computing with an invented value. (window_days is exempt: "today only" legitimately means 0.)
+        for key in ('quantity', 'observed_output', 'delivery_buffer_days', 'packing_loss_days'):
+            if key in fresh and not said(fresh[key], [message]):
+                fresh.pop(key)
         if intent == Intent.ORDER_LOOKUP and not explicit_ids and any(key in fresh for key in ('customer', 'product', 'quantity', 'due_date')):
             base['order_ids'] = []
         if 'order_ids' in fresh and intent not in (Intent.ORDER_COMPARE,):
@@ -116,7 +141,8 @@ class WorkflowEngine:
         if state.comparison_orders and not explicit_ids and intent not in (Intent.ORDER_COMPARE, Intent.ORDER_COMMITMENT, Intent.ORDER_PRIORITIZE, Intent.OPERATIONS_NORMALITY, Intent.OPERATIONS_DEVIATION):
             return self.ask('Which order do you mean: ' + ', '.join(state.comparison_orders) + '?', state, result, now, calls, evidence)
         if result.confidence < 0.65 or intent == Intent.UNKNOWN:
-            return self.ask(result.clarification_question or 'Which order or operation would you like to check?', state, result, now, calls, evidence)
+            # The model's own clarifying question is never shown: it is model-written text and could state a fact.
+            return self.ask('Which order or operation would you like to check?', state, result, now, calls, evidence)
         comparative_ranking = intent == Intent.ORDER_COMPARE and (slots.action == 'rank' or slots.criterion is not None)
         if (slots.reference == 'ambiguous' and not comparative_ranking) or (state.comparison_orders and slots.reference == 'active' and not slots.order_ids and intent != Intent.ORDER_COMPARE):
             return self.ask('Which order do you mean: ' + ', '.join(state.comparison_orders) + '?', state, result, now, calls, evidence)
@@ -328,6 +354,13 @@ class WorkflowEngine:
                 preview = f"Ready to send to {state.draft['recipient']} about {order_id}:\n{state.draft['text']}\nPlease confirm 'send now'."
                 self.propose('send', order_id, state.draft.copy(), preview, state, now)
                 return self.response(state, result, now, preview, calls, evidence)
+            heard = self.said(state)
+            if slots.recipient and not own_words(slots.recipient, heard, 1.0):
+                slots.recipient = None
+            if slots.tone and not own_words(slots.tone, heard, 1.0):
+                slots.tone = None
+            if slots.text and not own_words(slots.text, heard, 0.6):
+                slots.text = None     # not the user's words: the code's standard wording is used instead
             recipient = slots.recipient or (state.draft or {}).get('recipient')
             if not recipient:
                 return self.ask('Who should receive the draft, and what tone should I use?', state, result, now, calls, evidence)
@@ -342,6 +375,8 @@ class WorkflowEngine:
             calls.append(ToolCall(name='draft_chase', arguments={'order_id': order_id}, result=state.draft))
             answer = f"Unsent draft to {recipient} ({state.draft['tone']}):\n{text}\nDraft only; nothing has been sent."
         elif result.intent == Intent.EXECUTION_NOTE:
+            if slots.text and not own_words(slots.text, self.said(state), 0.8):
+                slots.text = None     # a note must be the user's own words, never the model's
             if not slots.text:
                 return self.ask('What exact internal note should I attach?', state, result, now, calls, evidence)
             target_is_explicit = order_id in message.upper()

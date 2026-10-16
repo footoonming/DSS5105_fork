@@ -30,6 +30,7 @@ class AskResponse(BaseModel):
     answer: str
     business_time: str
     queries: list[QueryEvidence]
+    ungrounded: list[str] = []      # numbers in the model-worded answer that no query returned (flagged in the answer too)
 
 
 @router.post('/api/ai/ask', response_model=AskResponse)

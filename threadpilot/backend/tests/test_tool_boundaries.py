@@ -153,6 +153,7 @@ def test_the_tool_spec_lists_exactly_the_tools_the_engine_emits(tmp_path, busine
     def say(message: str, intent: str, session: str | None = None, **slots: Any) -> str:
         response = run(engine.chat(ChatRequest(message=message, session_id=session), Fixed(intent, **slots)))
         seen.update(names(response))
+        assert not response.ungrounded, (message, response.ungrounded, response.answer)
         return response.state.session_id
 
     s = say('TrendCart order', 'order.lookup', customer='TrendCart')
@@ -164,7 +165,7 @@ def test_the_tool_spec_lists_exactly_the_tools_the_engine_emits(tmp_path, busine
     say('800 hoodies by the 25th delivered to the customer', 'order.commitment', None, quantity=800, product='hoodies', due_date='2026-04-25', delivery_point='customer')
     say('Is packing normal today?', 'operations.normality', None, stage='PACKING', target_date='today', baseline='same_weekday', observed_output=600)
     say('Why was packing low yesterday?', 'operations.deviation', None, stage='PACKING', target_date='yesterday')
-    s = say('Chase ORD-005', 'execution.chase', None, order_ids=['ORD-005'], recipient='Planner', action='draft')
+    s = say('Chase ORD-005 with the planner', 'execution.chase', None, order_ids=['ORD-005'], recipient='Planner', action='draft')
     s = say('Send it', 'execution.chase', s, order_ids=['ORD-005'], action='send')
     say('confirm', 'execution.chase', s)
     s = say('Note on ORD-005: waiting for trims', 'execution.note', None, order_ids=['ORD-005'], text='waiting for trims')

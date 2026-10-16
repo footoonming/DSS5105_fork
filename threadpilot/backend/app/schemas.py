@@ -140,3 +140,6 @@ class ChatResponse(StrictModel):
     model: str = 'gpt-4.1'
     business_date: str
     usage: dict[str, int] | None = None
+    # Numbers in the answer that no tool returned and the user never typed (app/grounding.py). Empty is the norm;
+    # anything here is logged as a warning, and the tests and the evaluation count it.
+    ungrounded: list[str] = Field(default_factory=list)

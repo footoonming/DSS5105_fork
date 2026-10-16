@@ -20,6 +20,7 @@ from ..config import Settings
 from ..crud.data_record import MODELS
 from ..db.session import make_engine
 from ..sql_workflow_store import SQLWorkflowStore
+from ..grounding import flatten, ungrounded
 
 SQL_SYSTEM_PROMPT = '''You are ThreadPilot's read-only factory analyst. Every factual answer must use a
 fresh sql_db_query in THIS turn. History provides references, never current facts. Ask minimal
@@ -72,6 +73,17 @@ def validate_sql(query: str, max_rows: int) -> str:
         tree = tree.limit(max_rows)
     return tree.sql(dialect='mysql')
 
+
+
+def flag_ungrounded(answer: str, message: str, evidence: list[dict[str, Any]], business_time: str) -> tuple[str, list[str]]:
+    """This route is the one place the model words the answer itself (from its query results). Every number it states
+    must be in the query results, the SQL, the question or the business time; any other number is flagged in the
+    answer, so the manager is warned, and returned in `ungrounded`."""
+    missing = ungrounded(answer, flatten(message, business_time, evidence), {'0', '1'})
+    if missing:
+        answer += ('\n\nCheck before relying on this: ' + ', '.join(missing) +
+                   (' does' if len(missing) == 1 else ' do') + ' not appear in the query results above.')
+    return answer, missing
 
 class AISQLService:
     def __init__(self, settings: Settings) -> None:
@@ -150,13 +162,14 @@ class AISQLService:
             answer = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
             if not evidence:
                 answer = 'No current database evidence was retrieved. Please clarify the order, customer, date window or question. For actions requiring confirmation, use /chat.'
+            answer, missing = flag_ungrounded(answer, message, evidence, business_time)
             history.extend([{'role': 'user', 'content': message}, {'role': 'assistant', 'content': answer[:8000]}])
             if self.history_store:
                 self.history_store.save_history(session_id, history[-8:])
             else:
                 with sqlite3.connect(self.settings.workflow_db) as db:
                     db.execute('INSERT INTO sql_sessions(id,history) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET history=excluded.history', (session_id, json.dumps(history[-8:])))
-            return {'session_id': session_id, 'answer': answer, 'queries': evidence, 'business_time': business_time}
+            return {'session_id': session_id, 'answer': answer, 'queries': evidence, 'business_time': business_time, 'ungrounded': missing}
 
     def close(self) -> None:
         """场景 1.2：释放只读连接池。"""
